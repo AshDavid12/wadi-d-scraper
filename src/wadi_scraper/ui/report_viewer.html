@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Competitor reports</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1114;
+      --panel: #1a1d23;
+      --border: #2a2f3a;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #7cacf8;
+      --ok: #5bb974;
+      --warn: #f0b429;
+      --err: #f07178;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .client { color: var(--muted); font-size: 0.9rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) 1fr;
+      min-height: calc(100vh - 56px);
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 1rem;
+      overflow: auto;
+    }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.35rem; }
+    select {
+      width: 100%;
+      padding: 0.5rem;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.4rem 0.25rem; }
+    td { padding: 0.45rem 0.25rem; border-top: 1px solid var(--border); cursor: pointer; }
+    tr:hover td { background: var(--panel); }
+    tr.selected td { background: #252932; }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: lowercase;
+    }
+    .badge.ok { background: #1e3a2f; color: var(--ok); }
+    .badge.partial { background: #3a3420; color: var(--warn); }
+    .badge.sitemap_error, .badge.failed { background: #3a2024; color: var(--err); }
+    main { padding: 1.25rem 1.5rem; overflow: auto; }
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .toolbar button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .toolbar button:hover { border-color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    #report-md {
+      max-width: 52rem;
+      line-height: 1.55;
+    }
+    #report-md h1, #report-md h2, #report-md h3 { margin-top: 1.25em; }
+    #report-md a { color: var(--accent); }
+    #report-md code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; }
+    #report-md pre { background: var(--panel); padding: 1rem; overflow: auto; border-radius: 8px; }
+    #report-raw {
+      display: none;
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      max-width: 52rem;
+      background: var(--panel);
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    footer {
+      padding: 0.75rem 1.25rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .empty { color: var(--muted); padding: 2rem 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Competitor reports</h1>
+    <span class="client" id="client-label"></span>
+  </header>
+  <div class="layout">
+    <aside>
+      <label for="competitor-filter">Competitor</label>
+      <select id="competitor-filter">
+        <option value="">All runs</option>
+      </select>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>When</th></tr>
+        </thead>
+        <tbody id="runs-body"></tbody>
+      </table>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <span class="badge" id="status-badge" hidden></span>
+        <button type="button" id="toggle-raw">Show raw markdown</button>
+      </div>
+      <div class="meta" id="report-meta"></div>
+      <div id="report-md" class="empty">Select a run to view its report.</div>
+      <pre id="report-raw"></pre>
+    </main>
+  </div>
+  <footer>
+    To refresh data, run <code>python -m wadi_scraper run --competitor reebok</code> in a terminal.
+    Phase 2 will add a Run button here.
+  </footer>
+  <script>
+    let selectedRunId = null;
+    let rawMarkdown = "";
+    let showRaw = false;
+
+    function fmtTime(iso) {
+      if (!iso) return "—";
+      return iso.replace(" UTC", "").slice(0, 16);
+    }
+
+    async function loadCompetitors() {
+      const res = await fetch("/api/competitors");
+      const data = await res.json();
+      document.getElementById("client-label").textContent = data.client || "";
+      const sel = document.getElementById("competitor-filter");
+      for (const c of data.competitors || []) {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name + (c.enabled ? "" : " (disabled)");
+        sel.appendChild(opt);
+      }
+    }
+
+    async function loadRuns() {
+      const competitor = document.getElementById("competitor-filter").value;
+      const q = competitor ? "?competitor=" + encodeURIComponent(competitor) : "";
+      const res = await fetch("/api/runs" + q);
+      const data = await res.json();
+      const tbody = document.getElementById("runs-body");
+      tbody.innerHTML = "";
+      for (const r of data.runs || []) {
+        const tr = document.createElement("tr");
+        if (r.id === selectedRunId) tr.classList.add("selected");
+        tr.dataset.runId = r.id;
+        const when = fmtTime(r.finished_at || r.started_at);
+        tr.innerHTML =
+          "<td>#" + r.id + " " + r.competitor_id + "</td>" +
+          '<td><span class="badge ' + r.status + '">' + r.status + "</span></td>" +
+          "<td>" + when + "</td>";
+        tr.addEventListener("click", () => selectRun(r.id));
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function selectRun(runId) {
+      selectedRunId = runId;
+      await loadRuns();
+      const res = await fetch("/api/runs/" + runId + "/report");
+      if (!res.ok) {
+        document.getElementById("report-md").textContent = "Report not found.";
+        return;
+      }
+      const data = await res.json();
+      rawMarkdown = data.markdown || "";
+      const badge = document.getElementById("status-badge");
+      badge.hidden = false;
+      badge.className = "badge " + (data.status || "");
+      badge.textContent = data.status || "";
+      document.getElementById("report-meta").textContent =
+        (data.competitor_name || data.competitor_id) +
+        " · run #" + data.run_id +
+        (data.generated_at_utc ? " · Generated " + data.generated_at_utc : "") +
+        (data.has_report ? "" : " · (no stored markdown yet)");
+      renderReport();
+    }
+
+    function renderReport() {
+      const mdEl = document.getElementById("report-md");
+      const rawEl = document.getElementById("report-raw");
+      if (showRaw) {
+        mdEl.style.display = "none";
+        rawEl.style.display = "block";
+        rawEl.textContent = rawMarkdown || "(empty)";
+      } else {
+        mdEl.style.display = "block";
+        rawEl.style.display = "none";
+        if (!rawMarkdown) {
+          mdEl.className = "empty";
+          mdEl.textContent = "No markdown stored for this run.";
+        } else {
+          mdEl.className = "";
+          mdEl.innerHTML = marked.parse(rawMarkdown);
+        }
+      }
+    }
+
+    document.getElementById("competitor-filter").addEventListener("change", () => {
+      selectedRunId = null;
+      document.getElementById("report-md").className = "empty";
+      document.getElementById("report-md").textContent = "Select a run to view its report.";
+      loadRuns();
+    });
+
+    document.getElementById("toggle-raw").addEventListener("click", () => {
+      showRaw = !showRaw;
+      document.getElementById("toggle-raw").textContent =
+        showRaw ? "Show rendered" : "Show raw markdown";
+      renderReport();
+    });
+
+    (async () => {
+      await loadCompetitors();
+      await loadRuns();
+    })();
+  </script>
+</body>
+</html>

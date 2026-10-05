@@ -71,8 +71,22 @@ Only brands with `enabled: true` are run. **Enable a brand only after `probe` su
 | `python -m wadi_scraper report --competitor reebok` | Latest run for that competitor |
 | `python -m wadi_scraper report --run-id <n> --write-report ./out` | Export markdown/JSON files |
 | `python -m wadi_scraper report --run-id <n> --regenerate` | Rebuild report from existing DB rows |
+| `python -m wadi_scraper serve` | **Local report UI** (read-only) at http://127.0.0.1:8787/ |
+| `python -m wadi_scraper serve --open` | Start UI and open your browser |
 
-Environment: `DATABASE_URL` (required for run/report). Optional `WADI_CONFIG` to point at another YAML (e.g. demo config).
+Environment: `DATABASE_URL` (required for run/report/serve). Optional `WADI_CONFIG` to point at another YAML (e.g. demo config).
+
+### Report UI (Phase 1 — local, read-only)
+
+Browse stored markdown reports from Neon in a browser. Does not start new crawls yet (use `run` in a terminal, or Phase 2 Run button).
+
+```bash
+set -a && source .env.local && set +a
+python -m wadi_scraper serve --open
+```
+
+- Filter runs by competitor; click a row to render the same markdown as `report --run-id`.
+- Binds **127.0.0.1** by default — do not expose on `0.0.0.0` without auth (reads your DB).
 
 ### Manual workflow (office / home network)
 

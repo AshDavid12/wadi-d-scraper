@@ -10,6 +10,7 @@ from wadi_scraper.probe import format_probe_report, probe_competitor
 from wadi_scraper.reporting import generate_report_for_run
 from wadi_scraper.runner import run_ingest
 from wadi_scraper.sitemap import IngestResult
+from wadi_scraper.serve import run_server
 from wadi_scraper.store import connect, ensure_schema, get_latest_run, get_report, get_run
 
 
@@ -170,6 +171,18 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    load_env()
+    if args.open:
+        import threading
+        import webbrowser
+
+        url = f"http://{args.host}:{args.port}/"
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    run_server(host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="wadi-scraper")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -213,6 +226,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Rebuild report from stored snapshots",
     )
     report_p.set_defaults(func=cmd_report)
+
+    serve_p = sub.add_parser("serve", help="Local web UI for browsing stored reports")
+    serve_p.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    serve_p.add_argument("--port", type=int, default=8787, help="Port (default: 8787)")
+    serve_p.add_argument(
+        "--open",
+        action="store_true",
+        help="Open browser after starting",
+    )
+    serve_p.set_defaults(func=cmd_serve)
 
     args = parser.parse_args(argv)
     return args.func(args)

@@ -13,6 +13,20 @@ from wadi_scraper.sitemap import IngestResult, LocEntry
 
 
 @dataclass
+class RunSummary:
+    id: int
+    competitor_id: str
+    status: str
+    started_at: datetime | None
+    finished_at: datetime | None
+    pages_count: int
+    blogs_count: int
+    collections_count: int
+    other_count: int
+    has_report: bool
+
+
+@dataclass
 class RunRecord:
     id: int
     competitor_id: str
@@ -161,6 +175,55 @@ def get_run(conn: psycopg.Connection, run_id: int) -> RunRecord | None:
     if not row:
         return None
     return _row_to_run(row)
+
+
+def list_runs(
+    conn: psycopg.Connection,
+    *,
+    competitor_id: str | None = None,
+    limit: int = 50,
+) -> list[RunSummary]:
+    limit = max(1, min(int(limit), 200))
+    if competitor_id:
+        rows = conn.execute(
+            """
+            SELECT id, competitor_id, status, started_at, finished_at,
+                   pages_count, blogs_count, collections_count, other_count,
+                   (report_md IS NOT NULL AND report_md <> '') AS has_report
+            FROM runs
+            WHERE competitor_id = %s
+            ORDER BY id DESC
+            LIMIT %s
+            """,
+            (competitor_id, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT id, competitor_id, status, started_at, finished_at,
+                   pages_count, blogs_count, collections_count, other_count,
+                   (report_md IS NOT NULL AND report_md <> '') AS has_report
+            FROM runs
+            ORDER BY id DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+    return [
+        RunSummary(
+            id=int(r[0]),
+            competitor_id=r[1],
+            status=r[2],
+            started_at=r[3],
+            finished_at=r[4],
+            pages_count=int(r[5] or 0),
+            blogs_count=int(r[6] or 0),
+            collections_count=int(r[7] or 0),
+            other_count=int(r[8] or 0),
+            has_report=bool(r[9]),
+        )
+        for r in rows
+    ]
 
 
 def get_latest_run(
