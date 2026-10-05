@@ -118,6 +118,33 @@
       font-size: 0.8rem;
     }
     .empty { color: var(--muted); padding: 2rem 0; }
+    .run-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+    .run-actions button.primary {
+      background: #2a4070;
+      border-color: var(--accent);
+    }
+    .run-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #job-panel {
+      display: none;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+    #job-panel.active { display: block; }
+    #job-log {
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+      max-height: 8rem;
+      overflow: auto;
+      color: var(--muted);
+      font-family: ui-monospace, monospace;
+      font-size: 0.75rem;
+    }
+    #job-log li { margin: 0.15rem 0; }
   </style>
 </head>
 <body>
@@ -131,6 +158,14 @@
       <select id="competitor-filter">
         <option value="">All runs</option>
       </select>
+      <div class="run-actions">
+        <button type="button" class="primary" id="btn-run">Run selected brand</button>
+        <button type="button" id="btn-run-all">Run all enabled</button>
+      </div>
+      <div id="job-panel">
+        <strong id="job-title">Crawl in progress…</strong>
+        <ul id="job-log"></ul>
+      </div>
       <table>
         <thead>
           <tr><th>Run</th><th>Status</th><th>When</th></tr>
@@ -149,13 +184,14 @@
     </main>
   </div>
   <footer>
-    To refresh data, run <code>python -m wadi_scraper run --competitor reebok</code> in a terminal.
-    Phase 2 will add a Run button here.
+    Crawls use the same pipeline as <code>python -m wadi_scraper run</code>. One crawl at a time.
   </footer>
   <script>
     let selectedRunId = null;
     let rawMarkdown = "";
     let showRaw = false;
+    let pollTimer = null;
+    let competitorsData = [];
 
     function fmtTime(iso) {
       if (!iso) return "—";
@@ -166,8 +202,9 @@
       const res = await fetch("/api/competitors");
       const data = await res.json();
       document.getElementById("client-label").textContent = data.client || "";
+      competitorsData = data.competitors || [];
       const sel = document.getElementById("competitor-filter");
-      for (const c of data.competitors || []) {
+      for (const c of competitorsData) {
         const opt = document.createElement("option");
         opt.value = c.id;
         opt.textContent = c.name + (c.enabled ? "" : " (disabled)");
@@ -188,7 +225,8 @@
         tr.dataset.runId = r.id;
         const when = fmtTime(r.finished_at || r.started_at);
         tr.innerHTML =
-          "<td>#" + r.id + " " + r.competitor_id + "</td>" +
+          "<td>" + r.competitor_id + " #" + (r.snapshot_number || r.id) +
+          ' <span style="color:var(--muted);font-size:0.7rem">id ' + r.id + "</span></td>" +
           '<td><span class="badge ' + r.status + '">' + r.status + "</span></td>" +
           "<td>" + when + "</td>";
         tr.addEventListener("click", () => selectRun(r.id));
@@ -212,7 +250,8 @@
       badge.textContent = data.status || "";
       document.getElementById("report-meta").textContent =
         (data.competitor_name || data.competitor_id) +
-        " · run #" + data.run_id +
+        " · snapshot #" + (data.snapshot_number || "?") +
+        (data.run_id ? " (db id " + data.run_id + ")" : "") +
         (data.generated_at_utc ? " · Generated " + data.generated_at_utc : "") +
         (data.has_report ? "" : " · (no stored markdown yet)");
       renderReport();
@@ -250,6 +289,76 @@
       document.getElementById("toggle-raw").textContent =
         showRaw ? "Show rendered" : "Show raw markdown";
       renderReport();
+    });
+
+    function setRunButtonsDisabled(disabled) {
+      document.getElementById("btn-run").disabled = disabled;
+      document.getElementById("btn-run-all").disabled = disabled;
+    }
+
+    async function startCrawl(body) {
+      setRunButtonsDisabled(true);
+      const panel = document.getElementById("job-panel");
+      const logEl = document.getElementById("job-log");
+      panel.classList.add("active");
+      logEl.innerHTML = "";
+      document.getElementById("job-title").textContent = "Starting crawl…";
+      const res = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        document.getElementById("job-title").textContent = data.error || "Failed to start";
+        setRunButtonsDisabled(false);
+        return;
+      }
+      pollJob(data.job_id);
+    }
+
+    function pollJob(jobId) {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        const res = await fetch("/api/jobs/" + jobId);
+        const job = await res.json();
+        const logEl = document.getElementById("job-log");
+        logEl.innerHTML = (job.lines || []).map((l) => "<li>" + l + "</li>").join("");
+        logEl.scrollTop = logEl.scrollHeight;
+        document.getElementById("job-title").textContent =
+          "Crawl: " + job.status + (job.error ? " — " + job.error : "");
+        if (job.status === "done" || job.status === "failed") {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          setRunButtonsDisabled(false);
+          await loadRuns();
+          const lastId = (job.run_ids || []).slice(-1)[0];
+          if (lastId) await selectRun(lastId);
+        }
+      }, 2000);
+      fetch("/api/jobs/" + jobId).then((r) => r.json()).then((job) => {
+        const logEl = document.getElementById("job-log");
+        logEl.innerHTML = (job.lines || []).map((l) => "<li>" + l + "</li>").join("");
+      });
+    }
+
+    document.getElementById("btn-run").addEventListener("click", () => {
+      const cid = document.getElementById("competitor-filter").value;
+      if (!cid) {
+        alert("Select a competitor first.");
+        return;
+      }
+      const c = competitorsData.find((x) => x.id === cid);
+      if (c && !c.enabled) {
+        alert("That brand is disabled in config.");
+        return;
+      }
+      startCrawl({ competitor_id: cid });
+    });
+
+    document.getElementById("btn-run-all").addEventListener("click", () => {
+      if (!confirm("Run all enabled competitors? This may take several minutes.")) return;
+      startCrawl({ all_enabled: true });
     });
 
     (async () => {

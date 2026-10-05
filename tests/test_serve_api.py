@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from wadi_scraper.config import AppConfig, CompetitorConfig
+from wadi_scraper.jobs import JobManager
 from wadi_scraper.serve import api_competitors, api_run_report, api_runs_list, dispatch_get
 from wadi_scraper.store import RunSummary
 
@@ -44,7 +45,9 @@ def test_api_runs_list():
 
 def test_dispatch_get_index():
     app = _app()
-    code, ct, body = dispatch_get("/", {}, database_url="postgresql://x", app=app)
+    code, ct, body = dispatch_get(
+        "/", {}, database_url="postgresql://x", app=app, jobs=JobManager()
+    )
     assert code == 200
     assert b"Competitor reports" in body
     assert "text/html" in ct

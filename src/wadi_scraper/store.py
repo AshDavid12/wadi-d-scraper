@@ -24,6 +24,7 @@ class RunSummary:
     collections_count: int
     other_count: int
     has_report: bool
+    snapshot_number: int = 0
 
 
 @dataclass
@@ -177,6 +178,22 @@ def get_run(conn: psycopg.Connection, run_id: int) -> RunRecord | None:
     return _row_to_run(row)
 
 
+def competitor_snapshot_number(
+    conn: psycopg.Connection,
+    competitor_id: str,
+    run_id: int,
+) -> int:
+    """1-based index of this run among all runs for the brand (stable, human-friendly)."""
+    row = conn.execute(
+        """
+        SELECT COUNT(*)::int FROM runs
+        WHERE competitor_id = %s AND id <= %s
+        """,
+        (competitor_id, run_id),
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
 def list_runs(
     conn: psycopg.Connection,
     *,
@@ -184,12 +201,17 @@ def list_runs(
     limit: int = 50,
 ) -> list[RunSummary]:
     limit = max(1, min(int(limit), 200))
+    snapshot_sql = """
+        (SELECT COUNT(*)::int FROM runs r2
+         WHERE r2.competitor_id = runs.competitor_id AND r2.id <= runs.id)
+    """
     if competitor_id:
         rows = conn.execute(
-            """
+            f"""
             SELECT id, competitor_id, status, started_at, finished_at,
                    pages_count, blogs_count, collections_count, other_count,
-                   (report_md IS NOT NULL AND report_md <> '') AS has_report
+                   (report_md IS NOT NULL AND report_md <> '') AS has_report,
+                   {snapshot_sql}
             FROM runs
             WHERE competitor_id = %s
             ORDER BY id DESC
@@ -199,10 +221,11 @@ def list_runs(
         ).fetchall()
     else:
         rows = conn.execute(
-            """
+            f"""
             SELECT id, competitor_id, status, started_at, finished_at,
                    pages_count, blogs_count, collections_count, other_count,
-                   (report_md IS NOT NULL AND report_md <> '') AS has_report
+                   (report_md IS NOT NULL AND report_md <> '') AS has_report,
+                   {snapshot_sql}
             FROM runs
             ORDER BY id DESC
             LIMIT %s
@@ -221,6 +244,7 @@ def list_runs(
             collections_count=int(r[7] or 0),
             other_count=int(r[8] or 0),
             has_report=bool(r[9]),
+            snapshot_number=int(r[10] or 0),
         )
         for r in rows
     ]

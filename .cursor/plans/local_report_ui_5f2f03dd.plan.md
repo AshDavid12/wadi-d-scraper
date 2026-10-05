@@ -16,13 +16,13 @@ todos:
     status: completed
   - id: p2-job-runner
     content: "Phase 2 — jobs module + POST /api/runs + GET /api/jobs/{id}"
-    status: pending
+    status: completed
   - id: p2-ui-actions
     content: "Phase 2 — Run / Run all buttons + progress polling in HTML"
-    status: pending
+    status: completed
   - id: p2-tests
     content: "Phase 2 — job lifecycle tests (mock run_ingest)"
-    status: pending
+    status: completed
 isProject: false
 ---
 

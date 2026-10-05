@@ -10,6 +10,7 @@ from wadi_scraper.report import CompetitorReportBlock, SeoReportSection, seriali
 from wadi_scraper.seo_diff import FieldChange
 from wadi_scraper.tiers import classify_url_tier
 from wadi_scraper.store import (
+    competitor_snapshot_number,
     get_previous_successful_run,
     get_run,
     load_url_observations,
@@ -124,6 +125,7 @@ def generate_report_for_run(
         sitemap_failures=_failures_from_meta(meta),
         diff=diff,
         seo=_seo_from_meta(meta),
+        snapshot_number=competitor_snapshot_number(conn, run.competitor_id, run.id),
     )
 
     md, report_json = serialize_report(app.client, [block])

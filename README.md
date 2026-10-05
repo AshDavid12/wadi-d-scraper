@@ -76,17 +76,20 @@ Only brands with `enabled: true` are run. **Enable a brand only after `probe` su
 
 Environment: `DATABASE_URL` (required for run/report/serve). Optional `WADI_CONFIG` to point at another YAML (e.g. demo config).
 
-### Report UI (Phase 1 — local, read-only)
+### Report UI (local)
 
-Browse stored markdown reports from Neon in a browser. Does not start new crawls yet (use `run` in a terminal, or Phase 2 Run button).
+Browse reports and **start crawls** from the browser (same pipeline as CLI `run`).
 
 ```bash
 set -a && source .env.local && set +a
 python -m wadi_scraper serve --open
 ```
 
-- Filter runs by competitor; click a row to render the same markdown as `report --run-id`.
-- Binds **127.0.0.1** by default — do not expose on `0.0.0.0` without auth (reads your DB).
+- Filter runs by competitor; click a row to render markdown (`report --run-id`).
+- **Run selected brand** / **Run all enabled** — background job with live log; opens the new report when done (one crawl at a time).
+- Binds **127.0.0.1** by default — do not expose on `0.0.0.0` without auth (reads your DB and triggers live fetches).
+
+**Run numbering:** The UI shows **snapshot #N** per brand (1st Reebok run, 2nd Reebok run, …). The global **database run id** (e.g. 37) still exists for CLI `--run-id` and FKs; it grows with every test/demo ingest on that Neon branch. Use a **dev Neon branch** for experiments to keep production ids tidy.
 
 ### Manual workflow (office / home network)
 

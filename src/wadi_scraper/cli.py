@@ -22,7 +22,7 @@ def _print_summary(
     run_status: str,
 ) -> None:
     print(f"client: {app_client}")
-    print(f"run_id: {run_id}")
+    print(f"run_id: {run_id}  (database id; see report snapshot # for brand sequence)")
     print(f"competitor: {competitor_id}")
     print(f"status: {run_status}")
     print(f"pages: {ingest.pages_count}")

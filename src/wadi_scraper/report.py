@@ -57,6 +57,7 @@ class CompetitorReportBlock:
     sitemap_failures: list[tuple[str, int]]
     diff: InventoryDiff
     seo: SeoReportSection
+    snapshot_number: int | None = None
 
 
 def build_report_payload(
@@ -75,6 +76,7 @@ def build_report_payload(
                 "id": b.competitor_id,
                 "name": b.competitor_name,
                 "run_id": b.run_id,
+                "snapshot_number": b.snapshot_number,
                 "status": b.status,
                 "error_message": b.error_message,
                 "started_at_utc": format_datetime_utc(b.started_at),
@@ -118,7 +120,13 @@ def render_markdown(
     for b in blocks:
         lines.append(f"## {b.competitor_name} ({b.competitor_id})")
         lines.append("")
-        lines.append(f"**Status:** `{b.status}` · **Run ID:** {b.run_id}")
+        if b.snapshot_number:
+            lines.append(
+                f"**Status:** `{b.status}` · **Snapshot:** #{b.snapshot_number} for this brand "
+                f"(database run id {b.run_id})"
+            )
+        else:
+            lines.append(f"**Status:** `{b.status}` · **Run ID:** {b.run_id}")
         if b.error_message:
             lines.append(f"**Error:** {b.error_message}")
         if b.diff.days_since_previous is not None:

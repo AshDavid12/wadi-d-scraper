@@ -12,8 +12,16 @@ import psycopg
 
 from wadi_scraper.config import AppConfig, load_config
 from wadi_scraper.env import load_env, require_database_url
+from wadi_scraper.jobs import JobManager, default_job_manager
 from wadi_scraper.report import format_datetime_utc
-from wadi_scraper.store import connect, ensure_schema, get_report, get_run, list_runs
+from wadi_scraper.store import (
+    competitor_snapshot_number,
+    connect,
+    ensure_schema,
+    get_report,
+    get_run,
+    list_runs,
+)
 
 _UI_DIR = Path(__file__).resolve().parent / "ui"
 
@@ -52,6 +60,7 @@ def api_runs_list(
     return [
         {
             "id": r.id,
+            "snapshot_number": r.snapshot_number,
             "competitor_id": r.competitor_id,
             "status": r.status,
             "started_at": r.started_at,
@@ -87,6 +96,7 @@ def api_run_report(
         generated = js.get("generated_at_utc_display")
     return {
         "run_id": run.id,
+        "snapshot_number": competitor_snapshot_number(conn, run.competitor_id, run.id),
         "competitor_id": run.competitor_id,
         "competitor_name": name,
         "status": run.status,
@@ -105,6 +115,7 @@ def dispatch_get(
     *,
     database_url: str,
     app: AppConfig,
+    jobs: JobManager,
 ) -> tuple[int, str, bytes]:
     if path == "/" or path == "/index.html":
         html_path = ui_index_path()
@@ -137,13 +148,74 @@ def dispatch_get(
             return 404, "application/json", json_response({"error": "run not found"})
         return 200, "application/json", json_response(payload)
 
+    m_job = re.fullmatch(r"/api/jobs/([a-f0-9]+)", path)
+    if m_job:
+        job_id = m_job.group(1)
+        job = jobs.get(job_id)
+        if not job:
+            return 404, "application/json", json_response({"error": "job not found"})
+        return 200, "application/json", json_response(jobs.to_dict(job))
+
     return 404, "application/json", json_response({"error": "not found"})
+
+
+def dispatch_post(
+    path: str,
+    body: bytes,
+    *,
+    database_url: str,
+    app: AppConfig,
+    jobs: JobManager,
+) -> tuple[int, str, bytes]:
+    if path != "/api/runs":
+        return 404, "application/json", json_response({"error": "not found"})
+
+    try:
+        payload = json.loads(body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return 400, "application/json", json_response({"error": "invalid JSON"})
+
+    all_enabled = bool(payload.get("all_enabled"))
+    competitor_id = payload.get("competitor_id")
+
+    if all_enabled and competitor_id:
+        return 400, "application/json", json_response(
+            {"error": "use competitor_id or all_enabled, not both"}
+        )
+
+    if all_enabled:
+        competitor_ids = [c.id for c in app.enabled()]
+        if not competitor_ids:
+            return 400, "application/json", json_response({"error": "no enabled competitors"})
+    elif competitor_id:
+        try:
+            comp = app.get(str(competitor_id))
+        except KeyError:
+            return 400, "application/json", json_response({"error": "unknown competitor"})
+        if not comp.enabled:
+            return 400, "application/json", json_response({"error": "competitor is disabled"})
+        competitor_ids = [comp.id]
+    else:
+        return 400, "application/json", json_response(
+            {"error": "competitor_id or all_enabled required"}
+        )
+
+    if jobs.has_active_job():
+        return 409, "application/json", json_response({"error": "a crawl is already running"})
+
+    job_id = jobs.start(database_url, app, competitor_ids)
+    if not job_id:
+        return 409, "application/json", json_response({"error": "a crawl is already running"})
+    return 202, "application/json", json_response({"job_id": job_id})
 
 
 def make_handler(
     database_url: str,
     app: AppConfig,
+    jobs: JobManager | None = None,
 ) -> type[BaseHTTPRequestHandler]:
+    job_mgr = jobs or default_job_manager
+
     class ReportUIHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
@@ -153,6 +225,29 @@ def make_handler(
                     parse_qs(parsed.query),
                     database_url=database_url,
                     app=app,
+                    jobs=job_mgr,
+                )
+            except Exception as exc:
+                code = 500
+                content_type = "application/json"
+                body = json_response({"error": str(exc)})
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length) if length else b""
+            parsed = urlparse(self.path)
+            try:
+                code, content_type, body = dispatch_post(
+                    parsed.path,
+                    raw,
+                    database_url=database_url,
+                    app=app,
+                    jobs=job_mgr,
                 )
             except Exception as exc:
                 code = 500
@@ -176,11 +271,12 @@ def run_server(
     *,
     database_url: str | None = None,
     app: AppConfig | None = None,
+    jobs: JobManager | None = None,
 ) -> None:
     load_env()
     db = database_url or require_database_url()
     cfg = app or load_config()
-    handler = make_handler(db, cfg)
+    handler = make_handler(db, cfg, jobs=jobs)
     server = ThreadingHTTPServer((host, port), handler)
     url = f"http://{host}:{port}/"
     print(f"Report UI at {url} (Ctrl+C to stop)")
