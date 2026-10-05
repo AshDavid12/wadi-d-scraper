@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://www.hoka.com/on/demandware.static/Sites-HOKA-US-Site/en_US-hreflang.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.hoka.com/sitemap_en_us_product.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.hoka.com/sitemap_en_us_content.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.hoka.com/sitemap_en_us_unknown.xml</loc>
+  </sitemap>
+</sitemapindex>

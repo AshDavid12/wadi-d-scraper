@@ -2,7 +2,7 @@
 
 **Competitor sitemap tracker** for Nike: discover what changed on rival footwear sites between manual runs—new and removed marketing URLs, sitemap signals, and selected on-page SEO fields—without building a product catalog or storing sitemap XML on disk.
 
-Built for US competitors on Shopify-style sitemaps (Reebok live today; Hoka, Adidas, Brooks, and Asics planned in config).
+Tracks **five US competitors**: Reebok, Hoka, Adidas, Brooks, and Asics. Brand-specific rules live in YAML (Shopify, SFCC, glass, custom)—not hard-coded in Python.
 
 ---
 
@@ -42,13 +42,31 @@ robots + sitemap index → filtered URL list → Postgres snapshot
 | **Fetch queue** | New URLs, selective `lastmod` changes, plus optional rotation sample (`fetch.rotate_sample`) |
 | **Run status** | `ok`, `partial` (some sitemap failures), `sitemap_error`, `failed` |
 | **Reporting** | Markdown + JSON; regenerate from DB without re-crawling (`report --regenerate`) |
-| **Config** | `config/competitors.yaml` — per-brand hosts, patterns, fetch caps, tier keywords |
+| **Config** | `config/competitors.yaml` — per-brand hosts, patterns, US loc filters, fetch caps, tiers |
+| **Multi-brand** | `run` with no `--competitor` runs all **enabled** brands; failures do not stop siblings |
+| **Probe** | `probe` checks robots + index XML and previews allow/deny/skip **without** downloading child sitemaps |
+
+### Competitor profiles (summary)
+
+| Brand | Platform | US focus | Notes |
+|-------|----------|----------|--------|
+| Reebok | Shopify | `www.reebok.com` | Reference brand; `robots` + Shopify child names |
+| Hoka | SFCC | `/en/us/` locs | `seeds_only`: `sitemap_index_all.xml`; deny hreflang/static. **Often 403 on the index even when `robots.txt` is 200** (bot wall on sitemap URLs—not a YAML typo). |
+| Adidas | glass | `/us/` locs | US glass index seed; allow PLP + blog sitemaps only |
+| Brooks | custom | `/en_us/` locs | Deny CA/GB sitemap children and loc prefixes |
+| Asics | custom | `/us/en-us/` locs | US content sitemap; deny JP/CA product indexes |
+
+Only brands with `enabled: true` are run. **Enable a brand only after `probe` succeeds on your network.**
 
 ### CLI
 
 | Command | Purpose |
 |---------|---------|
-| `python -m wadi_scraper run --competitor <id>` | Live crawl + snapshot + SEO fetch + report |
+| `python -m wadi_scraper probe` | Probe all brands in config (index + child preview) |
+| `python -m wadi_scraper probe --competitor hoka` | Single-brand probe |
+| `python -m wadi_scraper probe --require-enabled` | Exit 1 if any **enabled** brand fails probe |
+| `python -m wadi_scraper run --competitor reebok` | Live crawl + snapshot + SEO fetch + report |
+| `python -m wadi_scraper run` | Run **all enabled** competitors (continue on error) |
 | `python -m wadi_scraper report --run-id <n>` | Print stored report for a run |
 | `python -m wadi_scraper report --competitor reebok` | Latest run for that competitor |
 | `python -m wadi_scraper report --run-id <n> --write-report ./out` | Export markdown/JSON files |
@@ -56,10 +74,15 @@ robots + sitemap index → filtered URL list → Postgres snapshot
 
 Environment: `DATABASE_URL` (required for run/report). Optional `WADI_CONFIG` to point at another YAML (e.g. demo config).
 
-### Live Reebok notes
+### Manual workflow (office / home network)
 
-- Run from a **normal office/home network**. Datacenter or VPN IPs often get **403** on competitor sites.
-- SEO changes on live sites appear when URLs are **new**, **`lastmod` changes** (not a site-wide stamp), or hit the **rotation sample**—not every URL on every run.
+1. `probe --require-enabled` — every enabled brand should show **Probe OK: yes**, index HTTP **200**, and at least one **allow** child.
+2. `run` or `run --competitor …` — stores snapshots and reports in Postgres.
+3. `report --competitor …` or `--run-id` — read markdown (URL + SEO sections).
+
+**Risks:** Datacenter/VPN IPs often get **403** or bot walls (especially Hoka, Adidas, Brooks, Asics). A report full of `sitemap_error` means **wrong network**, not “no market activity.” Reebok is usually the most reachable. **Do not enable** brands that fail `probe` on your machine until you change network or tune config from a successful probe.
+
+SEO changes on live sites appear when URLs are **new**, **`lastmod` changes** (not a site-wide stamp), or hit the **rotation sample**—not every URL on every run.
 
 ---
 
@@ -87,7 +110,9 @@ Schema in `sql/*.sql` is applied automatically on first connect.
 source .venv/bin/activate
 set -a && source .env.local && set +a
 
+python -m wadi_scraper probe --require-enabled
 python -m wadi_scraper run --competitor reebok
+python -m wadi_scraper run                    # all enabled brands
 python -m wadi_scraper report --run-id 1
 python -m wadi_scraper report --competitor reebok
 python -m wadi_scraper report --run-id 2 --write-report ./out
@@ -105,10 +130,12 @@ After `run`, the CLI prints run id, inventory counts, HTTP request count, SEO fe
 pytest
 ```
 
-**~20 tests** use fixtures and pure logic—no `DATABASE_URL` required:
+**30+ tests** use fixtures and pure logic—no `DATABASE_URL` required for most:
 
 | Module | Covers |
 |--------|--------|
+| `test_brand_certification.py` | **All five brands** — fixture ingest, no product sitemap fetch, US loc filters |
+| `test_probe.py` | Probe index preview on Reebok fixture |
 | `test_sitemap.py` | Child sitemap allow/deny; product sitemap never fetched |
 | `test_sitemap_error.py` | All sitemap 403 → `sitemap_error` |
 | `test_normalize.py` | URL normalization |
@@ -117,6 +144,8 @@ pytest
 | `test_fetch_queue.py` | Cap at 50, Tier C excluded from queue and diff lists |
 | `test_extract.py` | HTML field extraction and change pairing |
 | `test_report.py` | Markdown for baseline and sitemap errors |
+
+Fixtures live under `tests/fixtures/<brand>/` (sanitized XML shaped like each platform).
 
 ### Local proof test (URL + SEO change detection)
 
@@ -170,7 +199,8 @@ Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/). Restart with `DEMO_VERSIO
 ## Repository layout
 
 ```text
-config/competitors.yaml      # Production competitors (Reebok enabled)
+config/competitors.yaml      # Five brands (enable after probe on your network)
+tests/fixtures/              # Per-brand sitemap certification XML
 config/competitors_demo.yaml # Local proof competitor
 sql/                         # Postgres migrations
 src/wadi_scraper/            # Package (sitemap, diff, fetch, report, CLI)
@@ -181,6 +211,13 @@ scripts/prove_scraper_e2e.py # Manual full HTTP proof
 
 ---
 
-## Roadmap
+## Sign-off checklist (before sharing reports with Nike)
 
-Phase 4 (in progress): full configs and CI fixtures for remaining brands, `probe` CLI, multi-brand runs, and README sign-off checklist. See `.cursor/plans/competitor_sitemap_tracker_ad29f2be.plan.md`.
+On the **same Mac/network** you will use for production runs:
+
+- [ ] `python -m wadi_scraper probe --require-enabled` — each **enabled** brand: Probe OK, index 200, ≥1 allowed child, no product sitemap in **deny** list that was HTTP-fetched
+- [ ] `run` for each enabled brand — status `ok` or `partial`, **>0** stored URLs (not all `sitemap_error`)
+- [ ] Second manual run after a few days — report shows sensible **days since last snapshot** and URL/SEO sections where data exists
+- [ ] Brands that fail probe remain `enabled: false` in `config/competitors.yaml`
+
+Plan reference: `.cursor/plans/competitor_sitemap_tracker_ad29f2be.plan.md`.

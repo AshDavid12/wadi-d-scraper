@@ -6,6 +6,7 @@ from pathlib import Path
 
 from wadi_scraper.config import load_config
 from wadi_scraper.env import load_env, require_database_url
+from wadi_scraper.probe import format_probe_report, probe_competitor
 from wadi_scraper.reporting import generate_report_for_run
 from wadi_scraper.runner import run_ingest
 from wadi_scraper.sitemap import IngestResult
@@ -33,26 +34,17 @@ def _print_summary(
     print(f"http_requests: {len(ingest.requested_urls)}")
 
 
-def cmd_run(args: argparse.Namespace) -> int:
-    load_env()
-    database_url = require_database_url()
-    app = load_config()
-    competitor_id = args.competitor
-    try:
-        competitor = app.get(competitor_id)
-    except KeyError:
-        print(f"Unknown competitor: {competitor_id}", file=sys.stderr)
-        return 1
+def _run_one_competitor(
+    app,
+    conn,
+    competitor_id: str,
+) -> tuple[int, IngestResult, str]:
+    competitor = app.get(competitor_id)
     if not competitor.enabled:
-        print(f"Competitor {competitor_id} is disabled in config.", file=sys.stderr)
-        return 1
-
-    with connect(database_url) as conn:
-        ensure_schema(conn)
-        run_id, ingest, run_status = run_ingest(conn, app, competitor)
-        run = get_run(conn, run_id)
-        seo_meta = (run.meta if run else {}) or {}
-
+        raise ValueError(f"disabled:{competitor_id}")
+    run_id, ingest, run_status = run_ingest(conn, app, competitor)
+    run = get_run(conn, run_id)
+    seo_meta = (run.meta if run else {}) or {}
     _print_summary(app.client, run_id, competitor_id, ingest, run_status)
     if run_status in ("ok", "partial"):
         print(
@@ -61,7 +53,76 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         print(f"seo_field_changes: {seo_meta.get('seo_field_change_count', 0)}")
     print(f"report: run_id {run_id} (use `python -m wadi_scraper report --run-id {run_id}`)")
-    return 0 if run_status in ("ok", "partial", "sitemap_error") else 1
+    print("")
+    return run_id, ingest, run_status
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    load_env()
+    database_url = require_database_url()
+    app = load_config()
+
+    targets: list[str]
+    if args.competitor:
+        targets = [args.competitor]
+    else:
+        targets = [c.id for c in app.enabled()]
+        if not targets:
+            print("No enabled competitors in config.", file=sys.stderr)
+            return 1
+
+    exit_code = 0
+    with connect(database_url) as conn:
+        ensure_schema(conn)
+        for competitor_id in targets:
+            try:
+                _, _, run_status = _run_one_competitor(app, conn, competitor_id)
+            except KeyError:
+                print(f"Unknown competitor: {competitor_id}", file=sys.stderr)
+                exit_code = 1
+                continue
+            except ValueError as exc:
+                if str(exc).startswith("disabled:"):
+                    print(f"Competitor {competitor_id} is disabled in config.", file=sys.stderr)
+                else:
+                    print(str(exc), file=sys.stderr)
+                exit_code = 1
+                continue
+            except Exception as exc:
+                print(f"{competitor_id} failed: {exc}", file=sys.stderr)
+                exit_code = 1
+                continue
+            if run_status not in ("ok", "partial", "sitemap_error"):
+                exit_code = 1
+    return exit_code
+
+
+def cmd_probe(args: argparse.Namespace) -> int:
+    load_env()
+    app = load_config()
+    if args.competitor:
+        ids = [args.competitor]
+    else:
+        ids = [c.id for c in app.competitors]
+
+    exit_code = 0
+    for cid in ids:
+        try:
+            competitor = app.get(cid)
+        except KeyError:
+            print(f"Unknown competitor: {cid}", file=sys.stderr)
+            exit_code = 1
+            continue
+        result = probe_competitor(competitor)
+        print(format_probe_report(result))
+        print("")
+        if args.require_enabled and not competitor.enabled:
+            continue
+        if competitor.enabled and not result.ok:
+            exit_code = 1
+        if args.require_enabled and competitor.enabled and not result.ok:
+            exit_code = 1
+    return exit_code
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -113,13 +174,27 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="wadi-scraper")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    run_p = sub.add_parser("run", help="Ingest sitemap snapshot for a competitor")
+    run_p = sub.add_parser("run", help="Ingest sitemap snapshot for one or all enabled competitors")
     run_p.add_argument(
         "--competitor",
-        required=True,
-        help="Competitor id (e.g. reebok)",
+        help="Competitor id (e.g. reebok). Omit to run all enabled brands.",
     )
     run_p.set_defaults(func=cmd_run)
+
+    probe_p = sub.add_parser(
+        "probe",
+        help="Check robots + sitemap index reachability (no child sitemap downloads)",
+    )
+    probe_p.add_argument(
+        "--competitor",
+        help="Single brand id. Omit to probe every brand in config.",
+    )
+    probe_p.add_argument(
+        "--require-enabled",
+        action="store_true",
+        help="Exit 1 if any enabled brand fails probe",
+    )
+    probe_p.set_defaults(func=cmd_probe)
 
     report_p = sub.add_parser("report", help="Show change report for a run")
     report_p.add_argument("--run-id", type=int, help="Run id (default: latest)")

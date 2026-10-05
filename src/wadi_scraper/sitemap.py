@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 import httpx
 
 from wadi_scraper.config import CompetitorConfig
+from wadi_scraper.http_client import looks_like_bot_wall, new_client
 from wadi_scraper.filters import classify_page_type, should_drop_loc
 from wadi_scraper.normalize import normalize_url
 
@@ -66,11 +67,40 @@ def _decompress_body(url: str, body: bytes, content_type: str) -> bytes:
     return body
 
 
+def prepare_sitemap_bytes(url: str, body: bytes, content_type: str = "") -> bytes:
+    """Normalize fetch body for XML parsing (gzip, brotli, raw magic bytes)."""
+    body = _decompress_body(url, body, content_type)
+    if len(body) >= 2 and body[:2] == b"\x1f\x8b":
+        try:
+            body = gzip.decompress(body)
+        except OSError:
+            pass
+    if not looks_like_sitemap_xml(body):
+        try:
+            import brotli
+
+            body = brotli.decompress(body)
+        except Exception:
+            pass
+    return body
+
+
+def looks_like_sitemap_xml(body: bytes) -> bool:
+    start = body.lstrip()[:120].lower()
+    return (
+        start.startswith(b"<?xml")
+        or start.startswith(b"<sitemapindex")
+        or start.startswith(b"<urlset")
+    )
+
+
 def _matches_any(url: str, patterns: list[str]) -> bool:
     return any(pat in url for pat in patterns)
 
 
 def sitemap_child_decision(url: str, competitor: CompetitorConfig) -> str:
+    if _matches_any(url, competitor.deny_sitemap_substrings):
+        return "deny"
     if _matches_any(url, competitor.deny_sitemap_patterns):
         return "deny"
     if competitor.allow_sitemap_patterns:
@@ -86,6 +116,8 @@ def discover_sitemap_seeds(
     requested: list[str],
 ) -> list[str]:
     seeds = list(competitor.sitemap_seeds)
+    if competitor.sitemap_discovery == "seeds_only":
+        return seeds
     if not competitor.hosts:
         return seeds
     host = competitor.hosts[0]
@@ -156,7 +188,7 @@ def _fetch_xml(
         failures.append((url, status))
         return None
     success_counter[0] += 1
-    return _decompress_body(url, body, content_type)
+    return prepare_sitemap_bytes(url, body, content_type)
 
 
 def _walk_sitemap(
@@ -228,11 +260,7 @@ def ingest_competitor_sitemap(
     result = IngestResult()
 
     def default_fetch(url: str) -> tuple[int, bytes, str]:
-        with httpx.Client(
-            follow_redirects=True,
-            timeout=30.0,
-            headers={"User-Agent": "wadi-scraper/0.1 (+https://github.com/wadi-d-scraper)"},
-        ) as client:
+        with new_client() as client:
             resp = client.get(url)
             ct = resp.headers.get("content-type", "")
             return resp.status_code, resp.content, ct
@@ -267,7 +295,10 @@ def ingest_competitor_sitemap(
         if normalized in seen_urls:
             continue
         seen_urls.add(normalized)
-        page_type = classify_page_type(urlparse(normalized).path or "/")
+        page_type = classify_page_type(
+            urlparse(normalized).path or "/",
+            competitor.platform,
+        )
         lastmod = _parse_lastmod(lastmod_raw)
         result.entries.append(
             LocEntry(url=normalized, page_type=page_type, lastmod=lastmod)
@@ -289,5 +320,30 @@ def ingest_competitor_sitemap(
     return result
 
 
-def any_product_sitemap_requested(requested: list[str]) -> list[str]:
-    return [u for u in requested if re.search(r"sitemap_products_", u, re.I)]
+def any_product_sitemap_requested(
+    requested: list[str],
+    competitor: CompetitorConfig | None = None,
+) -> list[str]:
+    hits: list[str] = []
+    for u in requested:
+        if re.search(r"sitemap_products_", u, re.I):
+            hits.append(u)
+            continue
+        if re.search(r"[-_/]product\.xml", u, re.I) and "sitemap" in u.lower():
+            hits.append(u)
+            continue
+        if competitor and _matches_any(u, competitor.deny_sitemap_patterns):
+            hits.append(u)
+    return hits
+
+
+def preview_index_children(
+    xml_bytes: bytes,
+    competitor: CompetitorConfig,
+) -> list[tuple[str, str]]:
+    """Return (child_url, decision) for sitemap index entries without fetching children."""
+    try:
+        child_locs, _ = _parse_sitemap_xml(xml_bytes)
+    except ET.ParseError as exc:
+        raise ValueError(f"sitemap XML parse failed: {exc}") from exc
+    return [(loc, sitemap_child_decision(loc, competitor)) for loc in child_locs]

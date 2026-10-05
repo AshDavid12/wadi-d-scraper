@@ -48,7 +48,7 @@ def run_ingest(
     run_id = create_run(conn, competitor.id)
     ingest = ingest_competitor_sitemap(competitor, fetch=fetch)
     try:
-        product_hits = any_product_sitemap_requested(ingest.requested_urls)
+        product_hits = any_product_sitemap_requested(ingest.requested_urls, competitor)
         if product_hits:
             finish_run(
                 conn,

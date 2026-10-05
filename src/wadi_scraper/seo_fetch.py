@@ -9,6 +9,7 @@ import httpx
 import psycopg
 
 from wadi_scraper.config import CompetitorConfig
+from wadi_scraper.http_client import new_client
 from wadi_scraper.diff import InventoryDiff, UrlRow
 from wadi_scraper.extract import PageFields, fetch_page_fields
 from wadi_scraper.fetch_queue import build_fetch_queue
@@ -67,11 +68,7 @@ def run_seo_fetch(
     own_client = fetch_html is None and page_fetcher is None
     client = None
     if page_fetcher is None:
-        client = fetch_html or httpx.Client(
-            follow_redirects=True,
-            timeout=30.0,
-            headers={"User-Agent": "wadi-scraper/0.1 (+https://github.com/wadi-d-scraper)"},
-        )
+        client = fetch_html or new_client()
     try:
         for url in queue:
             if page_fetcher is not None:

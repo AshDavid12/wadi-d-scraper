@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,9 @@ class CompetitorConfig:
     deny_loc_path_prefixes: list[str] = field(default_factory=list)
     deny_loc_substrings: list[str] = field(default_factory=list)
     drop_loc_path_prefixes: list[str] = field(default_factory=list)
+    allow_loc_path_prefixes: list[str] = field(default_factory=list)
+    deny_sitemap_substrings: list[str] = field(default_factory=list)
+    sitemap_discovery: str = "robots_then_seeds"
     normalize: NormalizeConfig = field(default_factory=NormalizeConfig)
 
 
@@ -92,7 +96,11 @@ def _normalize_block(raw: dict[str, Any] | None) -> NormalizeConfig:
 
 def load_config(path: Path | None = None) -> AppConfig:
     if path is None:
-        path = Path(__file__).resolve().parents[2] / "config" / "competitors.yaml"
+        env_path = os.environ.get("WADI_CONFIG")
+        if env_path:
+            path = Path(env_path)
+        else:
+            path = Path(__file__).resolve().parents[2] / "config" / "competitors.yaml"
     data = yaml.safe_load(path.read_text())
     competitors = []
     for raw in data.get("competitors", []):
@@ -109,6 +117,11 @@ def load_config(path: Path | None = None) -> AppConfig:
                 deny_loc_path_prefixes=list(raw.get("deny_loc_path_prefixes") or []),
                 deny_loc_substrings=list(raw.get("deny_loc_substrings") or []),
                 drop_loc_path_prefixes=list(raw.get("drop_loc_path_prefixes") or []),
+                allow_loc_path_prefixes=list(raw.get("allow_loc_path_prefixes") or []),
+                deny_sitemap_substrings=list(raw.get("deny_sitemap_substrings") or []),
+                sitemap_discovery=str(
+                    raw.get("sitemap_discovery", "robots_then_seeds")
+                ),
                 normalize=_normalize_block(raw.get("normalize")),
                 html_mode=str(raw.get("html_mode", "static")),
                 fetch=_fetch_block(raw.get("fetch")),

@@ -64,23 +64,230 @@ competitors:
   - id: hoka
     name: Hoka
     enabled: false
+    platform: sfcc
+    html_mode: likely_js
     hosts:
       - www.hoka.com
+    sitemap_discovery: seeds_only
+    sitemap_seeds:
+      - https://www.hoka.com/sitemap_index_all.xml
+    allow_sitemap_patterns:
+      - sitemap_en_us_content
+      - sitemap_en_us_category
+    deny_sitemap_patterns:
+      - product
+      - hreflang
+    deny_sitemap_substrings:
+      - demandware.static
+      - hreflang
+    allow_loc_path_prefixes:
+      - /en/us/
+    drop_loc_path_prefixes:
+      - /en/us/product/
+      - /product/
+    deny_loc_path_prefixes:
+      - /en/ca/
+      - /en/gb/
+    deny_loc_substrings:
+      - sort=
+      - prefn
+      - prefv
+    normalize:
+      scheme: https
+      strip_fragment: true
+      lowercase_host: true
+      strip_trailing_slash: false
+    fetch:
+      max_pages: 50
+      rotate_sample: 10
+      delay_seconds: 0.5
+    tiers:
+      tier_c_slug_pattern: "$^"
+      tier_a_collection_keywords:
+        - sale
+        - new
+        - featured
+      tier_a_page_keywords:
+        - sale
+        - stories
+        - promo
+      tier_page_deny_substrings:
+        - privacy
+        - cookie
+        - terms
+        - size-chart
 
   - id: adidas
     name: Adidas
     enabled: false
+    platform: glass
+    html_mode: likely_js
     hosts:
       - www.adidas.com
+    sitemap_discovery: seeds_only
+    sitemap_seeds:
+      - https://www.adidas.com/glass/sitemaps/adidas/US/en/sitemap-index.xml
+    allow_sitemap_patterns:
+      - plp-sitemap
+      - blog-pages-sitemap
+      - content-sitemap
+    deny_sitemap_patterns:
+      - product
+      - /DE/
+      - /GB/
+    deny_sitemap_substrings:
+      - adidas-US-en-us-product
+      - -product.xml
+    allow_loc_path_prefixes:
+      - /us/
+    drop_loc_path_prefixes:
+      - /us/product/
+    deny_loc_path_prefixes:
+      - /de/
+      - /gb/
+      - /cart
+      - /checkout
+    deny_loc_substrings:
+      - sort=
+      - prefn
+      - prefv
+      - "?page="
+    normalize:
+      scheme: https
+      strip_fragment: true
+      lowercase_host: true
+      strip_trailing_slash: false
+    fetch:
+      max_pages: 50
+      rotate_sample: 10
+      delay_seconds: 0.5
+    tiers:
+      tier_c_slug_pattern: "$^"
+      tier_a_collection_keywords:
+        - sale
+        - new
+        - outlet
+      tier_a_page_keywords:
+        - sale
+        - blog
+        - promo
+      tier_page_deny_substrings:
+        - privacy
+        - cookie
+        - terms
+        - help-topics
 
   - id: brooks
     name: Brooks
     enabled: false
+    platform: custom
+    html_mode: likely_js
     hosts:
       - www.brooksrunning.com
+    sitemap_discovery: seeds_only
+    sitemap_seeds:
+      - https://www.brooksrunning.com/sitemap_index.xml
+    allow_sitemap_patterns:
+      - sitemap_categories
+      - sitemap_content
+      - sitemap_pages
+    deny_sitemap_patterns:
+      - sitemap_products
+      - en_ca
+      - en_gb
+    deny_sitemap_substrings:
+      - product
+    allow_loc_path_prefixes:
+      - /en_us/
+    drop_loc_path_prefixes:
+      - /en_us/product/
+      - /product/
+    deny_loc_path_prefixes:
+      - /en_ca/
+      - /en_gb/
+      - /en_it/
+    deny_loc_substrings:
+      - sort=
+      - "?page="
+    normalize:
+      scheme: https
+      strip_fragment: true
+      lowercase_host: true
+      strip_trailing_slash: false
+    fetch:
+      max_pages: 50
+      rotate_sample: 10
+      delay_seconds: 0.5
+    tiers:
+      tier_c_slug_pattern: "$^"
+      tier_a_collection_keywords:
+        - sale
+        - new
+        - clearance
+      tier_a_page_keywords:
+        - sale
+        - blog
+        - promo
+      tier_page_deny_substrings:
+        - privacy
+        - cookie
+        - terms
 
   - id: asics
     name: Asics
     enabled: false
+    platform: custom
+    html_mode: static
     hosts:
       - www.asics.com
+    sitemap_discovery: seeds_only
+    sitemap_seeds:
+      - https://www.asics.com/us/en-us/sitemap_index.xml
+    allow_sitemap_patterns:
+      - sitemap-content
+      - sitemap_us_en_us_content
+      - sitemap_us_en_us_category
+    deny_sitemap_patterns:
+      - sitemap_0
+      - product
+      - sitemap_jp_
+      - sitemap_ca_
+    deny_sitemap_substrings:
+      - _product.xml
+      - managed-sitemaps
+      - hreflang
+      - href-sitemap
+    allow_loc_path_prefixes:
+      - /us/en-us/
+    drop_loc_path_prefixes:
+      - /us/en-us/product/
+    deny_loc_path_prefixes:
+      - /jp/
+      - /ca/
+      - /au/
+    deny_loc_substrings:
+      - "?page="
+      - colour_filter
+    normalize:
+      scheme: https
+      strip_fragment: true
+      lowercase_host: true
+      strip_trailing_slash: false
+    fetch:
+      max_pages: 50
+      rotate_sample: 10
+      delay_seconds: 0.5
+    tiers:
+      tier_c_slug_pattern: "$^"
+      tier_a_collection_keywords:
+        - sale
+        - outlet
+        - new
+      tier_a_page_keywords:
+        - sale
+        - blog
+        - promo
+      tier_page_deny_substrings:
+        - privacy
+        - cookie
+        - terms
