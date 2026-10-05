@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
+from typing import Callable, Optional
 
 import httpx
 import psycopg
@@ -44,6 +45,7 @@ def run_seo_fetch(
     previous: dict[str, UrlRow] | None,
     diff: InventoryDiff,
     fetch_html: httpx.Client | None = None,
+    page_fetcher: Optional[Callable[[str], PageFields]] = None,
 ) -> SeoFetchStats:
     stats = SeoFetchStats()
     if not current:
@@ -62,15 +64,21 @@ def run_seo_fetch(
     )
     stats.candidates = total
 
-    own_client = fetch_html is None
-    client = fetch_html or httpx.Client(
-        follow_redirects=True,
-        timeout=30.0,
-        headers={"User-Agent": "wadi-scraper/0.1 (+https://github.com/wadi-d-scraper)"},
-    )
+    own_client = fetch_html is None and page_fetcher is None
+    client = None
+    if page_fetcher is None:
+        client = fetch_html or httpx.Client(
+            follow_redirects=True,
+            timeout=30.0,
+            headers={"User-Agent": "wadi-scraper/0.1 (+https://github.com/wadi-d-scraper)"},
+        )
     try:
         for url in queue:
-            fields = fetch_page_fields(url, client)
+            if page_fetcher is not None:
+                fields = page_fetcher(url)
+            else:
+                assert client is not None
+                fields = fetch_page_fields(url, client)
             prior = get_last_page_snapshot(conn, competitor.id, url, before_run_id=run_id)
             prior_fields = _snapshot_to_fields(prior) if prior else None
             stats.field_changes.extend(diff_page_fields(prior_fields, fields))
@@ -79,7 +87,7 @@ def run_seo_fetch(
             if competitor.fetch.delay_seconds > 0:
                 time.sleep(competitor.fetch.delay_seconds)
     finally:
-        if own_client:
+        if own_client and client is not None:
             client.close()
 
     return stats

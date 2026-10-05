@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import Callable, Optional
+
 import psycopg
 
 from wadi_scraper.config import AppConfig, CompetitorConfig
+from wadi_scraper.extract import PageFields
 from wadi_scraper.reporting import build_inventory_diff, generate_report_for_run
 from wadi_scraper.seo_diff import FieldChange
 from wadi_scraper.seo_fetch import run_seo_fetch, stats_to_meta
@@ -40,6 +43,7 @@ def run_ingest(
     app: AppConfig,
     competitor: CompetitorConfig,
     fetch: FetchFn | None = None,
+    page_fetcher: Optional[Callable[[str], PageFields]] = None,
 ) -> tuple[int, IngestResult, str]:
     run_id = create_run(conn, competitor.id)
     ingest = ingest_competitor_sitemap(competitor, fetch=fetch)
@@ -83,6 +87,7 @@ def run_ingest(
                 current_urls,
                 previous_urls,
                 diff,
+                page_fetcher=page_fetcher,
             )
             seo_meta = stats_to_meta(seo_stats)
             seo_meta["seo_field_changes"] = _changes_to_json(seo_stats.field_changes)

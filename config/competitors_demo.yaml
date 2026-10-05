@@ -1,0 +1,33 @@
+client: Nike
+
+competitors:
+  - id: demo
+    name: Demo Local Site
+    enabled: true
+    platform: shopify
+    hosts:
+      - 127.0.0.1:8765
+    sitemap_seeds:
+      - http://127.0.0.1:8765/sitemap.xml
+    allow_sitemap_patterns:
+      - sitemap_pages_
+    deny_sitemap_patterns:
+      - sitemap_products_
+    html_mode: static
+    normalize:
+      scheme: http
+    fetch:
+      max_pages: 50
+      rotate_sample: 0
+      delay_seconds: 0
+    tiers:
+      tier_c_slug_pattern: "-0[a-z0-9]{5,8}$"
+      tier_a_collection_keywords:
+        - sale
+        - new-arrival
+      tier_a_page_keywords:
+        - promo
+        - campaign
+        - about
+      tier_page_deny_substrings:
+        - privacy
