@@ -60,7 +60,7 @@ def test_dispatch_get_guide():
     )
     assert code == 200
     assert "application/json" in ct
-    assert b"plain English" in body
+    assert b"How this works" in body
     assert b"Reebok" in body
 
 
