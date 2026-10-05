@@ -3,185 +3,727 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Competitor reports</title>
+  <title>Wadi Digital Scraper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg: #0f1114;
-      --panel: #1a1d23;
-      --border: #2a2f3a;
-      --text: #e8eaed;
+      --sidebar: #14171c;
+      --paper: #1a1d23;
+      --ink: #e8eaed;
       --muted: #9aa0a6;
-      --accent: #7cacf8;
+      --faint: #6f767e;
+      --line: #2a2f3a;
+      --line-strong: #3a4150;
+      --accent: #8eb4f8;
+      --accent-soft: #1e2a40;
+      --ok-bg: #1e3a2f;
       --ok: #5bb974;
+      --warn-bg: #3a3420;
       --warn: #f0b429;
+      --err-bg: #3a2024;
       --err: #f07178;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 16px 36px rgba(0, 0, 0, 0.28);
+      --sans: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --serif: "Source Serif 4", Georgia, serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
       min-height: 100vh;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--ink);
+      letter-spacing: -0.011em;
     }
-    header {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid var(--border);
+    button, select { font-family: inherit; }
+    button:focus-visible, select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .topbar {
+      min-height: 64px;
+      height: auto;
+      padding: 0.65rem 1.25rem;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 1rem;
       flex-wrap: wrap;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
     }
-    header h1 { font-size: 1.1rem; font-weight: 600; margin: 0; }
-    .client { color: var(--muted); font-size: 0.9rem; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+    .mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #2a4070;
+      color: #e8eaed;
+      display: grid;
+      place-items: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      flex: none;
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .tagline {
+      margin: 0.05rem 0 0;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .tabs {
+      display: flex;
+      gap: 0.2rem;
+      padding: 0.2rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #101216;
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab[aria-selected="true"] {
+      background: #2a3140;
+      color: var(--ink);
+    }
+    .scope {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      padding: 0.65rem 1.25rem;
+      background: #12151a;
+      border-bottom: 1px solid var(--line);
+    }
+    .scope-block {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    .scope-kicker {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+      flex: none;
+    }
+    #client-label {
+      font-size: 0.92rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    #client-label:empty::before {
+      content: "—";
+      color: var(--faint);
+      font-weight: 500;
+    }
+    .scope-rule {
+      width: 1px;
+      align-self: stretch;
+      background: var(--line);
+      flex: none;
+    }
+    .brand-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      border: 1px solid var(--line-strong);
+      background: #1a1d23;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.22rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .brand-pill:hover { border-color: var(--accent); }
+    .brand-pill.selected {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: #d6e4ff;
+    }
+    .brand-pill.off {
+      color: var(--muted);
+      border-style: dashed;
+    }
+    .brand-pill.off.selected { color: #d6e4ff; }
+    .pill-state {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+    .client-chip:empty { display: none; }
+
     .layout {
       display: grid;
-      grid-template-columns: minmax(280px, 360px) 1fr;
-      min-height: calc(100vh - 56px);
+      grid-template-columns: 340px 1fr;
+      min-height: calc(100vh - 64px - 41px);
     }
     @media (max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
+      .topbar { height: auto; padding: 0.85rem 1rem; }
     }
+
     aside {
-      border-right: 1px solid var(--border);
-      padding: 1rem;
-      overflow: auto;
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
-    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.35rem; }
+    .controls {
+      padding: 1.1rem 1rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+    }
+    label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
     select {
       width: 100%;
-      padding: 0.5rem;
-      background: var(--panel);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      margin-bottom: 1rem;
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th { text-align: left; color: var(--muted); font-weight: 500; padding: 0.4rem 0.25rem; }
-    td { padding: 0.45rem 0.25rem; border-top: 1px solid var(--border); cursor: pointer; }
-    tr:hover td { background: var(--panel); }
-    tr.selected td { background: #252932; }
-    .badge {
-      display: inline-block;
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: lowercase;
-    }
-    .badge.ok { background: #1e3a2f; color: var(--ok); }
-    .badge.partial { background: #3a3420; color: var(--warn); }
-    .badge.sitemap_error, .badge.failed { background: #3a2024; color: var(--err); }
-    main { padding: 1.25rem 1.5rem; overflow: auto; }
-    .toolbar {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-    .toolbar button {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.35rem 0.75rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    .toolbar button:hover { border-color: var(--accent); }
-    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
-    #report-md {
-      max-width: 52rem;
-      line-height: 1.55;
-    }
-    #report-md h1, #report-md h2, #report-md h3 { margin-top: 1.25em; }
-    #report-md a { color: var(--accent); }
-    #report-md code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; }
-    #report-md pre { background: var(--panel); padding: 1rem; overflow: auto; border-radius: 8px; }
-    #report-raw {
-      display: none;
-      white-space: pre-wrap;
-      font-family: ui-monospace, monospace;
-      font-size: 0.8rem;
-      max-width: 52rem;
-      background: var(--panel);
-      padding: 1rem;
+      appearance: none;
+      background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%239aa0a6' stroke-width='1.5' d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E") no-repeat right 0.75rem center;
+      color: var(--ink);
+      border: 1px solid var(--line-strong);
       border-radius: 8px;
+      padding: 0.55rem 2rem 0.55rem 0.7rem;
+      font-size: 0.9rem;
     }
-    footer {
-      padding: 0.75rem 1.25rem;
-      border-top: 1px solid var(--border);
-      color: var(--muted);
+    .run-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .run-actions button, .toolbar button {
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: var(--paper);
+      color: var(--ink);
+      padding: 0.5rem 0.65rem;
       font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
     }
-    .empty { color: var(--muted); padding: 2rem 0; }
-    .run-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
     .run-actions button.primary {
       background: #2a4070;
       border-color: var(--accent);
+      color: var(--ink);
     }
-    .run-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .run-actions button:hover, .toolbar button:hover { border-color: var(--accent); }
+    .run-actions button.primary:hover { filter: brightness(1.08); }
+    .run-actions button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+
     #job-panel {
       display: none;
-      margin-bottom: 1rem;
-      padding: 0.75rem;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 0.8rem;
+      margin-top: 0.75rem;
+      padding: 0.7rem 0.75rem;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
     }
     #job-panel.active { display: block; }
+    #job-panel.done { border-color: #2d5a3d; background: #15241c; }
+    #job-panel.failed { border-color: #6b3038; background: #2a161a; }
+    .job-head {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #b45309;
+      box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.45);
+      animation: pulse 1.6s ease-out infinite;
+      flex: none;
+    }
+    #job-panel.done .pulse { background: var(--ok); animation: none; box-shadow: none; }
+    #job-panel.failed .pulse { background: var(--err); animation: none; box-shadow: none; }
+    @keyframes pulse {
+      70% { box-shadow: 0 0 0 6px rgba(180, 83, 9, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0); }
+    }
     #job-log {
-      margin: 0.5rem 0 0;
+      margin: 0.55rem 0 0;
       padding: 0;
       list-style: none;
-      max-height: 8rem;
+      max-height: 7.5rem;
       overflow: auto;
       color: var(--muted);
-      font-family: ui-monospace, monospace;
-      font-size: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      line-height: 1.45;
     }
     #job-log li { margin: 0.15rem 0; }
+
+    .history {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex: 1;
+    }
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0.85rem 1rem 0.45rem;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    #run-count {
+      font-size: 0.72rem;
+      color: var(--faint);
+      font-variant-numeric: tabular-nums;
+    }
+    #runs-body {
+      overflow: auto;
+      padding: 0 0.65rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .empty-side {
+      margin: 0.4rem 0.35rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .run-card {
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 10px;
+      padding: 0.6rem 0.65rem 0.55rem;
+      cursor: pointer;
+      color: inherit;
+    }
+    .run-card:hover { background: rgba(255, 255, 255, 0.04); }
+    .run-card.selected {
+      background: #22262e;
+      border-color: var(--line-strong);
+      box-shadow: none;
+    }
+    .run-top, .run-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .run-name {
+      font-size: 0.86rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+    .run-snap {
+      color: var(--muted);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .run-when {
+      margin-top: 0.2rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .run-counts {
+      margin-top: 0.35rem;
+      color: var(--faint);
+      font-size: 0.7rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      background: #2a2f3a;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .badge.partial { background: var(--warn-bg); color: var(--warn); }
+    .badge.sitemap_error, .badge.failed { background: var(--err-bg); color: var(--err); }
+    .badge.running, .badge.queued { background: #1c2a44; color: var(--accent); }
+
+    main {
+      padding: 1.25rem 1.5rem 2rem;
+      min-width: 0;
+    }
+    .report-shell {
+      max-width: 52rem;
+      margin: 0 auto;
+    }
+    .toolbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+    }
+    .toolbar-copy { min-width: 0; }
+    #report-title {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+    #report-title:empty { display: none; }
+    .meta {
+      margin-top: 0.25rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .meta:empty { display: none; }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: none;
+    }
+    #status-badge { font-size: 0.72rem; padding: 0.2rem 0.55rem; }
+
+    #report-md, #report-raw {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    #report-md {
+      padding: 1.75rem 2rem 2.25rem;
+    }
+    #report-md.empty {
+      box-shadow: none;
+      background: transparent;
+      border: 1px dashed var(--line-strong);
+      min-height: 16rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .empty-kicker {
+      margin: 0 0 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+    .empty-copy {
+      margin: 0;
+      max-width: 28rem;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .prose {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: var(--ink);
+    }
+    .prose h1,
+    .prose h2,
+    .prose h3 {
+      font-family: var(--sans);
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+    .prose h1 {
+      font-size: 1.55rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem;
+    }
+    .prose h2 {
+      font-size: 1.12rem;
+      margin: 1.8rem 0 0.65rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .prose h3 {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 1.4rem 0 0.45rem;
+    }
+    .prose p { margin: 0.55rem 0; }
+    .prose ul, .prose ol { margin: 0.4rem 0 0.8rem; padding-left: 1.15rem; }
+    .prose li { margin: 0.2rem 0; }
+    .prose li::marker { color: var(--faint); }
+    .prose a { color: #9ec1ff; }
+    .prose strong { font-weight: 600; }
+    .prose em { color: #c4c0b8; }
+    .prose code {
+      font-family: var(--mono);
+      font-size: 0.82em;
+      background: #121418;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    .prose pre {
+      background: #0c0e12;
+      color: #e8eaed;
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      border-radius: 10px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+    .prose pre code { background: transparent; color: inherit; padding: 0; }
+    .prose blockquote {
+      margin: 0.8rem 0;
+      padding: 0.2rem 0 0.2rem 0.9rem;
+      border-left: 3px solid var(--line-strong);
+      color: var(--muted);
+    }
+    .prose table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--sans);
+      font-size: 0.88rem;
+      margin: 0.8rem 0 1rem;
+    }
+    .prose th, .prose td {
+      text-align: left;
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .prose th { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+    .prose tr:nth-child(even) td { background: rgba(255, 255, 255, 0.03); }
+    #report-raw {
+      display: none;
+      white-space: pre-wrap;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      padding: 1.25rem 1.4rem;
+      color: #d4d0c8;
+    }
+
+    #view-reports[hidden],
+    #view-guide[hidden] { display: none; }
+    .guide-view {
+      padding: 1.5rem 1.25rem 2.5rem;
+      min-height: calc(100vh - 64px - 41px);
+    }
+    #guide-md {
+      max-width: 46rem;
+      margin: 0 auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 1.75rem 2rem 2.5rem;
+    }
+
+    footer {
+      padding: 0.7rem 1.25rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.75rem;
+      background: var(--sidebar);
+    }
+    footer code {
+      font-family: var(--mono);
+      font-size: 0.85em;
+      background: #121418;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 0.05em 0.3em;
+      border-radius: 4px;
+    }
+
+    .help[hidden] { display: none; }
+    .help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin: 0 0 0 0.28rem;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid var(--line-strong);
+      background: #22262e;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 0.68rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0;
+      text-transform: none;
+      cursor: help;
+      vertical-align: 0.12em;
+      flex: none;
+      position: relative;
+    }
+    .section-head .help { margin-left: 0; }
+    .help:hover, .help:focus-visible, .help.is-open {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .help-tip {
+      display: none;
+      position: fixed;
+      z-index: 40;
+      width: min(280px, calc(100vw - 16px));
+      padding: 0.55rem 0.7rem;
+      background: #f4f6f8;
+      color: #1a1d23;
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      font-weight: 400;
+      line-height: 1.45;
+      letter-spacing: -0.011em;
+      text-transform: none;
+      text-align: left;
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(28, 25, 23, 0.22);
+    }
+    .prose .help-tip { font-family: var(--sans); }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Competitor reports</h1>
-    <span class="client" id="client-label"></span>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">W</span>
+      <div>
+        <h1>Wadi Digital Scraper</h1>
+        <p class="tagline">Sitemap snapshots and inventory changes</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <button type="button" class="tab" id="tab-reports" aria-selected="true">Reports</button>
+      <button type="button" class="tab" id="tab-guide" aria-selected="false">How this works</button>
+    </nav>
   </header>
-  <div class="layout">
+  <div class="scope">
+    <div class="scope-block">
+      <span class="scope-kicker">Client</span>
+      <strong id="client-label"></strong>
+    </div>
+    <span class="scope-rule" aria-hidden="true"></span>
+    <div class="scope-block">
+      <span class="scope-kicker">Competitors</span>
+      <div class="brand-list" id="brand-list" role="list"></div>
+    </div>
+  </div>
+  <div class="layout" id="view-reports">
     <aside>
-      <label for="competitor-filter">Competitor</label>
-      <select id="competitor-filter">
-        <option value="">All runs</option>
-      </select>
-      <div class="run-actions">
-        <button type="button" class="primary" id="btn-run">Run selected brand</button>
-        <button type="button" id="btn-run-all">Run all enabled</button>
+      <div class="controls">
+        <label for="competitor-filter">Brand</label>
+        <select id="competitor-filter">
+          <option value="">All brands</option>
+        </select>
+        <div class="run-actions">
+          <button type="button" class="primary" id="btn-run">Run selected brand</button>
+          <button type="button" id="btn-run-all">Run all enabled</button>
+        </div>
+        <div id="job-panel">
+          <div class="job-head">
+            <span class="pulse" aria-hidden="true"></span>
+            <span id="job-title">Crawl in progress…</span>
+          </div>
+          <ul id="job-log"></ul>
+        </div>
       </div>
-      <div id="job-panel">
-        <strong id="job-title">Crawl in progress…</strong>
-        <ul id="job-log"></ul>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Run</th><th>Status</th><th>When</th></tr>
-        </thead>
-        <tbody id="runs-body"></tbody>
-      </table>
+      <section class="history" aria-label="Snapshot history">
+        <div class="section-head">
+          <h2>Snapshots
+            <button type="button" class="help" aria-label="A snapshot is one saved copy of a brand’s marketing URLs. The number is how many runs that brand has had. The database run id is a separate counter.">?
+              <span class="help-tip" role="tooltip">A snapshot is one saved copy of a brand’s marketing URLs. Snapshot #3 is the third run for that brand. The database run id is a separate counter and is only useful for the command line.</span>
+            </button>
+          </h2>
+          <span id="run-count"></span>
+        </div>
+        <div id="runs-body"></div>
+      </section>
     </aside>
     <main>
-      <div class="toolbar">
-        <span class="badge" id="status-badge" hidden></span>
-        <button type="button" id="toggle-raw">Show raw markdown</button>
+      <div class="report-shell">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2 id="report-title"></h2>
+            <div class="meta" id="report-meta"></div>
+          </div>
+          <div class="toolbar-actions">
+            <span class="badge" id="status-badge" hidden></span>
+            <button type="button" class="help" id="status-help" hidden aria-label="What this status means">?
+              <span class="help-tip" role="tooltip" id="status-help-tip"></span>
+            </button>
+            <button type="button" id="toggle-raw">Raw markdown</button>
+          </div>
+        </div>
+        <div id="report-md" class="empty">
+          <p class="empty-kicker">No snapshot open</p>
+          <p class="empty-copy">Choose a run from the list to read its report.</p>
+        </div>
+        <pre id="report-raw"></pre>
       </div>
-      <div class="meta" id="report-meta"></div>
-      <div id="report-md" class="empty">Select a run to view its report.</div>
-      <pre id="report-raw"></pre>
     </main>
+  </div>
+  <div id="view-guide" class="guide-view" hidden>
+    <article id="guide-md" class="prose">Loading the guide…</article>
   </div>
   <footer>
     Crawls use the same pipeline as <code>python -m wadi_scraper run</code>. One crawl at a time.
@@ -193,9 +735,253 @@
     let pollTimer = null;
     let competitorsData = [];
 
+    const STATUS_LABEL = {
+      ok: "Complete",
+      partial: "Partial",
+      sitemap_error: "Sitemap error",
+      failed: "Failed",
+      running: "Running",
+      queued: "Queued",
+      done: "Finished",
+    };
+
+    const STATUS_TIPS = {
+      ok: "The sitemap loaded and this snapshot was saved. Added and removed URLs are a real comparison with the previous successful run.",
+      partial: "Some sitemap files failed, but others loaded. Counts and changes cover only the files that came through.",
+      sitemap_error: "The site refused the sitemap, often with a bot wall or HTTP 403. There is no add/remove list. That does not mean the competitor published nothing.",
+      failed: "The run stopped because of an error in the tool, not because the sitemap was empty.",
+      running: "A crawl is still in progress.",
+      queued: "This crawl is waiting to start.",
+    };
+
+    const GLOSSARY = [
+      { re: /selective lastmod changes/i, key: "selective-lastmod", tip: "Lastmod is the “last modified” time published in the sitemap. These URLs changed that date on their own, not as part of one site-wide stamp. That usually means the page was actually edited, so the crawl opens them." },
+      { re: /bulk lastmod ignored/i, key: "bulk-lastmod", tip: "A large share of URLs received the same new lastmod time at once. That usually means the site rebuilt the sitemap file, not that every page was edited. Those stamps are ignored so they do not look like real updates." },
+      { re: /tier-c merchandising/i, key: "tier-c", tip: "Collection links whose address ends in a short generated code. They are counted here, and they are not written out one by one or opened. Tier A and B are the marketing URLs worth listing." },
+      { re: /skipped sitemap children/i, key: "skipped", tip: "Child sitemap files that were not downloaded because they are outside the allow list (not pages, blogs, or collections)." },
+      { re: /denied sitemap children/i, key: "denied", tip: "Child sitemap files the crawl is not allowed to request, such as product catalogs. They are recorded and never fetched." },
+      { re: /days since last successful snapshot/i, key: "days", tip: "How many days passed since the previous run that actually loaded a sitemap. A long gap is a long comparison window, not a quiet market." },
+      { re: /confirmed seo field changes/i, key: "seo", tip: "On-page fields that changed in the HTML that was opened: title, meta description, main heading, canonical URL, and the robots tag. Only pages this run fetched are checked." },
+      { re: /baseline run/i, key: "baseline", tip: "The first successful snapshot for this brand. There is no earlier list to compare, so nothing can be marked added or removed yet." },
+      { re: /sitemap could not be loaded/i, key: "sitemap-down", tip: "This run never saw the sitemap, usually because the site returned a bot wall or an error. There is no add/remove list for this brand." },
+      { re: /no prior snapshot to compare/i, key: "no-prior", tip: "This is the first good snapshot, so added and removed URLs do not exist yet." },
+      { re: /low confidence/i, key: "low-conf", tip: "The main heading was empty in the raw HTML. The visible heading is probably added by JavaScript, so this is a weak signal." },
+      { re: /html fetch/i, key: "html-fetch", tip: "How many pages were opened, out of the ones worth checking. The cap is 50 pages per brand. The crawl prefers new URLs and selective lastmod changes, plus a small rotating sample of older pages." },
+      { re: /\blisted\b/i, key: "listed", tip: "Marketing URLs written out in this report. At most 100 are shown; any further ones are only a count. Tier C is not included in this number." },
+      { re: /database run id/i, key: "db-id", tip: "The internal id in the database. It counts every ingest, including tests. Snapshot # is the number that sequences this brand." },
+      { re: /… and \d+ more/, key: "remainder", tip: "The report writes out at most 100 URLs. This is how many more were not printed." },
+      { re: /\bmeta_description\b/i, key: "meta-desc", once: true, tip: "The short description in the page’s meta description tag, often used as the search-result snippet." },
+      { re: /\bmeta_robots\b/i, key: "meta-robots", once: true, tip: "The robots tag. It tells search engines whether to index the page or follow its links, for example noindex." },
+      { re: /\bcanonical\b/i, key: "canonical", once: true, tip: "The canonical URL is the address the page tells search engines to treat as the official one." },
+      { re: /\brobots\b/i, key: "robots", once: true, tip: "The robots tag. It tells search engines whether to index the page or follow its links, for example noindex." },
+      { re: /\bH1\b/, key: "h1", once: true, tip: "The main heading on the page, read from the HTML the server sends before JavaScript runs." },
+      { re: /\bh1\b/, key: "h1-field", once: true, tip: "The main heading on the page, read from the HTML the server sends before JavaScript runs." },
+      { re: /\bOther\b/, key: "other", tip: "Sitemap URLs that are not a page, blog, or collection." },
+      { re: /^sitemap_error$/, key: "st-sitemap", tip: STATUS_TIPS.sitemap_error },
+      { re: /^partial$/, key: "st-partial", tip: STATUS_TIPS.partial },
+      { re: /^failed$/, key: "st-failed", tip: STATUS_TIPS.failed },
+      { re: /^ok$/, key: "st-ok", tip: STATUS_TIPS.ok },
+      { re: /^static$/, key: "mode-static", tip: "Static mode reads the first HTML response only. Text that appears after JavaScript runs in a browser is invisible." },
+    ];
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[ch]));
+    }
+
+    function statusLabel(status) {
+      return STATUS_LABEL[status] || status || "Unknown";
+    }
+
+    function nameFor(id) {
+      const c = competitorsData.find((x) => x.id === id);
+      return c ? c.name : id;
+    }
+
     function fmtTime(iso) {
       if (!iso) return "—";
-      return iso.replace(" UTC", "").slice(0, 16);
+      const cleaned = String(iso).replace(" UTC", "Z").replace(" ", "T");
+      const d = new Date(cleaned);
+      if (Number.isNaN(d.getTime())) return String(iso).replace(" UTC", "").slice(0, 16);
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function countsLine(counts) {
+      const c = counts || {};
+      return [
+        (c.pages || 0) + " pages",
+        (c.blogs || 0) + " blogs",
+        (c.collections || 0) + " collections",
+      ].join(" · ");
+    }
+
+    function helpButton(tip) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "help";
+      btn.setAttribute("aria-label", tip);
+      btn.appendChild(document.createTextNode("?"));
+      const tipEl = document.createElement("span");
+      tipEl.className = "help-tip";
+      tipEl.setAttribute("role", "tooltip");
+      tipEl.textContent = tip;
+      btn.appendChild(tipEl);
+      return btn;
+    }
+
+    function shouldSkipGlossary(node) {
+      const parent = node.parentElement;
+      if (!parent) return true;
+      if (parent.closest(".help, .term, pre, a")) return true;
+      const text = node.nodeValue || "";
+      if (/https?:\/\//i.test(text)) return true;
+      const code = parent.closest("code");
+      if (code && (text.includes("/") || text.length > 40)) return true;
+      return false;
+    }
+
+    function findGlossaryMatch(text, seen) {
+      let best = null;
+      for (const entry of GLOSSARY) {
+        if (entry.once && seen.has(entry.key)) continue;
+        const match = entry.re.exec(text);
+        if (!match) continue;
+        const cand = {
+          index: match.index,
+          length: match[0].length,
+          text: match[0],
+          tip: entry.tip,
+          key: entry.key,
+          once: !!entry.once,
+        };
+        if (
+          !best ||
+          cand.index < best.index ||
+          (cand.index === best.index && cand.length > best.length)
+        ) {
+          best = cand;
+        }
+      }
+      return best;
+    }
+
+    function annotateText(node, seen) {
+      if (!node.parentNode || shouldSkipGlossary(node)) return;
+      const match = findGlossaryMatch(node.nodeValue, seen);
+      if (!match) return;
+      if (match.once) seen.add(match.key);
+      const frag = document.createDocumentFragment();
+      if (match.index > 0) {
+        frag.appendChild(document.createTextNode(node.nodeValue.slice(0, match.index)));
+      }
+      const term = document.createElement("span");
+      term.className = "term";
+      term.appendChild(document.createTextNode(match.text));
+      term.appendChild(helpButton(match.tip));
+      frag.appendChild(term);
+      const rest = node.nodeValue.slice(match.index + match.length);
+      let restNode = null;
+      if (rest) {
+        restNode = document.createTextNode(rest);
+        frag.appendChild(restNode);
+      }
+      node.parentNode.replaceChild(frag, node);
+      if (restNode) annotateText(restNode, seen);
+    }
+
+    function annotateGlossary(root) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          return shouldSkipGlossary(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      const seen = new Set();
+      for (const node of nodes) annotateText(node, seen);
+    }
+
+    function placeTip(btn) {
+      const tip = btn.querySelector(".help-tip");
+      if (!tip) return;
+      tip.style.display = "block";
+      tip.style.visibility = "hidden";
+      const width = tip.offsetWidth;
+      const height = tip.offsetHeight;
+      const rect = btn.getBoundingClientRect();
+      let left = rect.left + rect.width / 2 - width / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+      let top = rect.bottom + 8;
+      if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 8);
+      tip.style.left = left + "px";
+      tip.style.top = top + "px";
+      tip.style.visibility = "visible";
+    }
+
+    function hideTip(btn) {
+      const tip = btn.querySelector(".help-tip");
+      if (!tip) return;
+      tip.style.display = "";
+      tip.style.visibility = "";
+    }
+
+    function showEmpty(kicker, copy) {
+      const mdEl = document.getElementById("report-md");
+      mdEl.className = "empty";
+      mdEl.style.display = "flex";
+      mdEl.innerHTML =
+        '<p class="empty-kicker">' + esc(kicker) + "</p>" +
+        '<p class="empty-copy">' + esc(copy) + "</p>";
+      document.getElementById("report-title").textContent = "";
+      document.getElementById("report-meta").textContent = "";
+      const badge = document.getElementById("status-badge");
+      badge.hidden = true;
+      badge.className = "badge";
+      badge.textContent = "";
+      const statusHelp = document.getElementById("status-help");
+      statusHelp.hidden = true;
+      statusHelp.classList.remove("is-open");
+      hideTip(statusHelp);
+    }
+
+    function syncRunButton() {
+      const cid = document.getElementById("competitor-filter").value;
+      const btn = document.getElementById("btn-run");
+      if (!cid) {
+        btn.textContent = "Run selected brand";
+        return;
+      }
+      btn.textContent = "Run " + nameFor(cid);
+    }
+
+    function renderBrandList() {
+      const list = document.getElementById("brand-list");
+      const selected = document.getElementById("competitor-filter").value;
+      list.innerHTML = "";
+      for (const c of competitorsData) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "brand-pill" + (c.enabled ? "" : " off") + (c.id === selected ? " selected" : "");
+        btn.setAttribute("aria-pressed", c.id === selected ? "true" : "false");
+        btn.innerHTML = esc(c.name) + (c.enabled ? "" : '<span class="pill-state">off</span>');
+        btn.addEventListener("click", () => {
+          const sel = document.getElementById("competitor-filter");
+          sel.value = sel.value === c.id ? "" : c.id;
+          selectTab("reports");
+          sel.dispatchEvent(new Event("change"));
+        });
+        list.appendChild(btn);
+      }
     }
 
     async function loadCompetitors() {
@@ -207,9 +993,10 @@
       for (const c of competitorsData) {
         const opt = document.createElement("option");
         opt.value = c.id;
-        opt.textContent = c.name + (c.enabled ? "" : " (disabled)");
+        opt.textContent = c.name + (c.enabled ? "" : " · disabled");
         sel.appendChild(opt);
       }
+      renderBrandList();
     }
 
     async function loadRuns() {
@@ -217,20 +1004,32 @@
       const q = competitor ? "?competitor=" + encodeURIComponent(competitor) : "";
       const res = await fetch("/api/runs" + q);
       const data = await res.json();
-      const tbody = document.getElementById("runs-body");
-      tbody.innerHTML = "";
-      for (const r of data.runs || []) {
-        const tr = document.createElement("tr");
-        if (r.id === selectedRunId) tr.classList.add("selected");
-        tr.dataset.runId = r.id;
-        const when = fmtTime(r.finished_at || r.started_at);
-        tr.innerHTML =
-          "<td>" + r.competitor_id + " #" + (r.snapshot_number || r.id) +
-          ' <span style="color:var(--muted);font-size:0.7rem">id ' + r.id + "</span></td>" +
-          '<td><span class="badge ' + r.status + '">' + r.status + "</span></td>" +
-          "<td>" + when + "</td>";
-        tr.addEventListener("click", () => selectRun(r.id));
-        tbody.appendChild(tr);
+      const body = document.getElementById("runs-body");
+      const runs = data.runs || [];
+      body.innerHTML = "";
+      document.getElementById("run-count").textContent = runs.length
+        ? runs.length + (runs.length === 1 ? " run" : " runs")
+        : "";
+      if (!runs.length) {
+        body.innerHTML = '<p class="empty-side">No snapshots for this filter.</p>';
+        return;
+      }
+      for (const r of runs) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "run-card" + (r.id === selectedRunId ? " selected" : "");
+        btn.dataset.runId = String(r.id);
+        const snap = r.snapshot_number || r.id;
+        btn.innerHTML =
+          '<div class="run-top">' +
+            '<span class="run-name">' + esc(nameFor(r.competitor_id)) +
+              ' <span class="run-snap">#' + esc(snap) + "</span></span>" +
+            '<span class="badge ' + esc(r.status) + '">' + esc(statusLabel(r.status)) + "</span>" +
+          "</div>" +
+          '<div class="run-when">' + esc(fmtTime(r.finished_at || r.started_at)) + "</div>" +
+          '<div class="run-counts">' + esc(countsLine(r.counts)) + "</div>";
+        btn.addEventListener("click", () => selectRun(r.id));
+        body.appendChild(btn);
       }
     }
 
@@ -239,7 +1038,7 @@
       await loadRuns();
       const res = await fetch("/api/runs/" + runId + "/report");
       if (!res.ok) {
-        document.getElementById("report-md").textContent = "Report not found.";
+        showEmpty("Unavailable", "That report could not be loaded.");
         return;
       }
       const data = await res.json();
@@ -247,13 +1046,29 @@
       const badge = document.getElementById("status-badge");
       badge.hidden = false;
       badge.className = "badge " + (data.status || "");
-      badge.textContent = data.status || "";
-      document.getElementById("report-meta").textContent =
-        (data.competitor_name || data.competitor_id) +
-        " · snapshot #" + (data.snapshot_number || "?") +
-        (data.run_id ? " (db id " + data.run_id + ")" : "") +
-        (data.generated_at_utc ? " · Generated " + data.generated_at_utc : "") +
-        (data.has_report ? "" : " · (no stored markdown yet)");
+      badge.textContent = statusLabel(data.status);
+      const statusHelp = document.getElementById("status-help");
+      const statusTip = STATUS_TIPS[data.status] || "How this run finished.";
+      statusHelp.hidden = false;
+      statusHelp.setAttribute("aria-label", statusTip);
+      document.getElementById("status-help-tip").textContent = statusTip;
+      const name = data.competitor_name || data.competitor_id || "Report";
+      document.getElementById("report-title").textContent = name;
+      const meta = document.getElementById("report-meta");
+      meta.textContent = "";
+      meta.appendChild(document.createTextNode("Snapshot #" + (data.snapshot_number || "?")));
+      meta.appendChild(helpButton(
+        "One saved copy of this brand’s marketing URLs. Snapshot #" +
+        (data.snapshot_number || "?") +
+        " is this brand’s own sequence. Run " +
+        (data.run_id || "?") +
+        " is the database id, which also counts other brands and test ingests."
+      ));
+      const tail = [];
+      if (data.run_id) tail.push("run " + data.run_id);
+      if (data.generated_at_utc) tail.push("Generated " + data.generated_at_utc);
+      if (!data.has_report) tail.push("no stored markdown yet");
+      if (tail.length) meta.appendChild(document.createTextNode(" · " + tail.join(" · ")));
       renderReport();
     }
 
@@ -264,30 +1079,75 @@
         mdEl.style.display = "none";
         rawEl.style.display = "block";
         rawEl.textContent = rawMarkdown || "(empty)";
-      } else {
-        mdEl.style.display = "block";
-        rawEl.style.display = "none";
-        if (!rawMarkdown) {
-          mdEl.className = "empty";
-          mdEl.textContent = "No markdown stored for this run.";
-        } else {
-          mdEl.className = "";
-          mdEl.innerHTML = marked.parse(rawMarkdown);
-        }
+        return;
       }
+      rawEl.style.display = "none";
+      mdEl.style.display = "block";
+      if (!rawMarkdown) {
+        mdEl.className = "empty";
+        mdEl.style.display = "flex";
+        mdEl.innerHTML =
+          '<p class="empty-kicker">Empty report</p>' +
+          '<p class="empty-copy">No markdown is stored for this run.</p>';
+        return;
+      }
+      mdEl.className = "prose";
+      mdEl.style.display = "block";
+      mdEl.innerHTML = marked.parse(rawMarkdown);
+      annotateGlossary(mdEl);
     }
+
+    document.addEventListener("mouseover", (event) => {
+      const btn = event.target.closest(".help");
+      if (!btn || btn.hidden) return;
+      placeTip(btn);
+    });
+    document.addEventListener("mouseout", (event) => {
+      const btn = event.target.closest(".help");
+      if (!btn || btn.contains(event.relatedTarget)) return;
+      if (!btn.classList.contains("is-open")) hideTip(btn);
+    });
+    document.addEventListener("focusin", (event) => {
+      if (event.target.classList && event.target.classList.contains("help")) placeTip(event.target);
+    });
+    document.addEventListener("focusout", (event) => {
+      const btn = event.target;
+      if (!btn.classList || !btn.classList.contains("help")) return;
+      if (!btn.classList.contains("is-open")) hideTip(btn);
+    });
+    document.addEventListener("click", (event) => {
+      const btn = event.target.closest(".help");
+      document.querySelectorAll(".help.is-open").forEach((open) => {
+        if (open !== btn) {
+          open.classList.remove("is-open");
+          hideTip(open);
+        }
+      });
+      if (!btn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      btn.classList.toggle("is-open");
+      if (btn.classList.contains("is-open")) placeTip(btn);
+      else hideTip(btn);
+    });
+    window.addEventListener("scroll", () => {
+      document.querySelectorAll(".help").forEach((btn) => {
+        const tip = btn.querySelector(".help-tip");
+        if (tip && tip.style.display === "block") placeTip(btn);
+      });
+    }, true);
 
     document.getElementById("competitor-filter").addEventListener("change", () => {
       selectedRunId = null;
-      document.getElementById("report-md").className = "empty";
-      document.getElementById("report-md").textContent = "Select a run to view its report.";
+      showEmpty("No snapshot open", "Choose a run from the list to read its report.");
+      syncRunButton();
+      renderBrandList();
       loadRuns();
     });
 
     document.getElementById("toggle-raw").addEventListener("click", () => {
       showRaw = !showRaw;
-      document.getElementById("toggle-raw").textContent =
-        showRaw ? "Show rendered" : "Show raw markdown";
+      document.getElementById("toggle-raw").textContent = showRaw ? "Rendered" : "Raw markdown";
       renderReport();
     });
 
@@ -296,13 +1156,16 @@
       document.getElementById("btn-run-all").disabled = disabled;
     }
 
+    function setJobState(status, title) {
+      const panel = document.getElementById("job-panel");
+      panel.className = "active" + (status === "done" ? " done" : status === "failed" ? " failed" : "");
+      document.getElementById("job-title").textContent = title;
+    }
+
     async function startCrawl(body) {
       setRunButtonsDisabled(true);
-      const panel = document.getElementById("job-panel");
-      const logEl = document.getElementById("job-log");
-      panel.classList.add("active");
-      logEl.innerHTML = "";
-      document.getElementById("job-title").textContent = "Starting crawl…";
+      document.getElementById("job-log").innerHTML = "";
+      setJobState("running", "Starting crawl…");
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -310,7 +1173,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        document.getElementById("job-title").textContent = data.error || "Failed to start";
+        setJobState("failed", data.error || "Failed to start");
         setRunButtonsDisabled(false);
         return;
       }
@@ -319,33 +1182,33 @@
 
     function pollJob(jobId) {
       if (pollTimer) clearInterval(pollTimer);
+      const paint = (job) => {
+        const logEl = document.getElementById("job-log");
+        logEl.innerHTML = (job.lines || []).map((l) => "<li>" + esc(l) + "</li>").join("");
+        logEl.scrollTop = logEl.scrollHeight;
+        const label = statusLabel(job.status);
+        const title = job.error ? label + " — " + job.error : "Crawl " + label.toLowerCase();
+        setJobState(job.status, title);
+        return job.status === "done" || job.status === "failed";
+      };
       pollTimer = setInterval(async () => {
         const res = await fetch("/api/jobs/" + jobId);
         const job = await res.json();
-        const logEl = document.getElementById("job-log");
-        logEl.innerHTML = (job.lines || []).map((l) => "<li>" + l + "</li>").join("");
-        logEl.scrollTop = logEl.scrollHeight;
-        document.getElementById("job-title").textContent =
-          "Crawl: " + job.status + (job.error ? " — " + job.error : "");
-        if (job.status === "done" || job.status === "failed") {
-          clearInterval(pollTimer);
-          pollTimer = null;
-          setRunButtonsDisabled(false);
-          await loadRuns();
-          const lastId = (job.run_ids || []).slice(-1)[0];
-          if (lastId) await selectRun(lastId);
-        }
+        if (!paint(job)) return;
+        clearInterval(pollTimer);
+        pollTimer = null;
+        setRunButtonsDisabled(false);
+        await loadRuns();
+        const lastId = (job.run_ids || []).slice(-1)[0];
+        if (lastId) await selectRun(lastId);
       }, 2000);
-      fetch("/api/jobs/" + jobId).then((r) => r.json()).then((job) => {
-        const logEl = document.getElementById("job-log");
-        logEl.innerHTML = (job.lines || []).map((l) => "<li>" + l + "</li>").join("");
-      });
+      fetch("/api/jobs/" + jobId).then((r) => r.json()).then(paint);
     }
 
     document.getElementById("btn-run").addEventListener("click", () => {
       const cid = document.getElementById("competitor-filter").value;
       if (!cid) {
-        alert("Select a competitor first.");
+        alert("Select a brand first.");
         return;
       }
       const c = competitorsData.find((x) => x.id === cid);
@@ -361,8 +1224,40 @@
       startCrawl({ all_enabled: true });
     });
 
+    const tabReports = document.getElementById("tab-reports");
+    const tabGuide = document.getElementById("tab-guide");
+    const viewReports = document.getElementById("view-reports");
+    const viewGuide = document.getElementById("view-guide");
+    let guideLoaded = false;
+
+    function selectTab(which) {
+      const reports = which === "reports";
+      tabReports.setAttribute("aria-selected", reports ? "true" : "false");
+      tabGuide.setAttribute("aria-selected", reports ? "false" : "true");
+      viewReports.hidden = !reports;
+      viewGuide.hidden = reports;
+      if (!reports) loadGuide();
+    }
+
+    async function loadGuide() {
+      if (guideLoaded) return;
+      const el = document.getElementById("guide-md");
+      const res = await fetch("/api/guide");
+      if (!res.ok) {
+        el.textContent = "The plain-English guide could not be loaded.";
+        return;
+      }
+      const data = await res.json();
+      el.innerHTML = marked.parse(data.markdown || "");
+      guideLoaded = true;
+    }
+
+    tabReports.addEventListener("click", () => selectTab("reports"));
+    tabGuide.addEventListener("click", () => selectTab("guide"));
+
     (async () => {
       await loadCompetitors();
+      syncRunButton();
       await loadRuns();
     })();
   </script>

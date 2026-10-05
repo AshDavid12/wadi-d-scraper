@@ -109,6 +109,23 @@ def api_run_report(
     }
 
 
+def guide_markdown_path() -> Path | None:
+    """Plain-English project guide. Prefer the repo copy so edits show up immediately."""
+    repo = Path(__file__).resolve().parents[2] / "docs" / "how-this-project-works.md"
+    packaged = _UI_DIR / "how-this-project-works.md"
+    for candidate in (repo, packaged):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def api_guide() -> dict[str, Any] | None:
+    path = guide_markdown_path()
+    if path is None:
+        return None
+    return {"markdown": path.read_text(encoding="utf-8")}
+
+
 def dispatch_get(
     path: str,
     query: dict[str, list[str]],
@@ -125,6 +142,12 @@ def dispatch_get(
 
     if path == "/api/competitors":
         return 200, "application/json", json_response(api_competitors(app))
+
+    if path == "/api/guide":
+        payload = api_guide()
+        if payload is None:
+            return 404, "application/json", json_response({"error": "guide not found"})
+        return 200, "application/json", json_response(payload)
 
     if path == "/api/runs":
         competitor = (query.get("competitor") or [None])[0]

@@ -49,8 +49,19 @@ def test_dispatch_get_index():
         "/", {}, database_url="postgresql://x", app=app, jobs=JobManager()
     )
     assert code == 200
-    assert b"Competitor reports" in body
+    assert b"Wadi Digital Scraper" in body
+    assert b"How this works" in body
     assert "text/html" in ct
+
+
+def test_dispatch_get_guide():
+    code, ct, body = dispatch_get(
+        "/api/guide", {}, database_url="postgresql://x", app=_app(), jobs=JobManager()
+    )
+    assert code == 200
+    assert "application/json" in ct
+    assert b"plain English" in body
+    assert b"Reebok" in body
 
 
 def test_api_run_report_missing():

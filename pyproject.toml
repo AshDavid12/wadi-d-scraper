@@ -31,6 +31,7 @@ packages = ["src/wadi_scraper"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/wadi_scraper/ui/report_viewer.html" = "wadi_scraper/ui/report_viewer.html"
+"docs/how-this-project-works.md" = "wadi_scraper/ui/how-this-project-works.md"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

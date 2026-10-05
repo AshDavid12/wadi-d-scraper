@@ -63,7 +63,7 @@ competitors:
 
   - id: hoka
     name: Hoka
-    enabled: false
+    enabled: true
     platform: sfcc
     html_mode: likely_js
     hosts:
@@ -119,7 +119,7 @@ competitors:
 
   - id: adidas
     name: Adidas
-    enabled: false
+    enabled: true
     platform: glass
     html_mode: likely_js
     hosts:
@@ -179,7 +179,7 @@ competitors:
 
   - id: brooks
     name: Brooks
-    enabled: false
+    enabled: true
     platform: custom
     html_mode: likely_js
     hosts:
@@ -235,7 +235,7 @@ competitors:
 
   - id: asics
     name: Asics
-    enabled: false
+    enabled: true
     platform: custom
     html_mode: static
     hosts:
