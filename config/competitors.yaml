@@ -1,0 +1,86 @@
+client: Nike
+
+competitors:
+  - id: reebok
+    name: Reebok
+    enabled: true
+    platform: shopify
+    hosts:
+      - www.reebok.com
+    sitemap_seeds:
+      - https://www.reebok.com/sitemap.xml
+    allow_sitemap_patterns:
+      - sitemap_pages_
+      - sitemap_blogs_
+      - sitemap_collections_
+    deny_sitemap_patterns:
+      - sitemap_products_
+      - sitemap_agentic_discovery
+    deny_loc_path_prefixes:
+      - /cart
+      - /checkout
+      - /account
+      - /search
+    deny_loc_substrings:
+      - sort_by
+      - "+"
+      - "%2B"
+      - "%2b"
+    drop_loc_path_prefixes:
+      - /products/
+    normalize:
+      scheme: https
+      strip_fragment: true
+      lowercase_host: true
+      strip_trailing_slash: false
+    html_mode: static
+    fetch:
+      max_pages: 50
+      rotate_sample: 10
+      delay_seconds: 0.5
+    tiers:
+      tier_c_slug_pattern: "-0[a-z0-9]{5,8}$"
+      tier_a_collection_keywords:
+        - sale
+        - new-arrival
+        - new-arrivals
+      tier_a_page_keywords:
+        - sale
+        - new-arrival
+        - about
+        - membership
+        - promo
+        - buy-more
+      tier_page_deny_substrings:
+        - size-guide
+        - privacy
+        - cookie
+        - terms
+        - accessibility
+        - opt-out
+        - shipping
+        - returns
+
+  - id: hoka
+    name: Hoka
+    enabled: false
+    hosts:
+      - www.hoka.com
+
+  - id: adidas
+    name: Adidas
+    enabled: false
+    hosts:
+      - www.adidas.com
+
+  - id: brooks
+    name: Brooks
+    enabled: false
+    hosts:
+      - www.brooksrunning.com
+
+  - id: asics
+    name: Asics
+    enabled: false
+    hosts:
+      - www.asics.com
