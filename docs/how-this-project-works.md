@@ -36,7 +36,7 @@ The first good run for a brand is a baseline. Later runs only mean something whe
 
 These are design choices so a person on a laptop can run a polite check, not a full copy of five websites.
 
-- **By hand only.** There is no timer and no server that crawls overnight.
+- **By hand only.** There is no timer and no server that crawls overnight. You start a run from the command line, or from the local report UI (`python -m wadi_scraper serve`), which uses the same pipeline.
 - **50 pages per brand per run.** About 10 of those are a rotating sample of older URLs. The rest are new URLs or URLs whose sitemap “last modified” date actually changed. A site-wide stamp on every URL is ignored, because that usually means the site regenerated the file, not that every page was edited.
 - **The report lists at most 100 added URLs and 100 removed URLs.** Extra ones are a count, not a dump.
 - **Static HTML only.** The tool reads the page as the server first sends it. Text that appears only after JavaScript runs in a browser is invisible to it.
@@ -44,7 +44,7 @@ These are design choices so a person on a laptop can run a polite check, not a f
 - **A brand stays off until a probe succeeds** on the same computer and the same network you will use for the real run. `probe` checks that the sitemap answers and that at least one allowed child sitemap is visible. It does not download those children.
 - **One blocked brand does not stop the others**, but an empty error report is not “nothing changed in the market.” It means this run never saw the sitemap.
 
-On this Mac, only Reebok answers. A probe on 5 Oct 2026 got a real Reebok sitemap (HTTP 200, 12 allowed child sitemaps) and a full run (88 pages, 23 blogs, 4,579 collections). Hoka, Adidas, Brooks, and Asics are turned off in config because the same network refuses them. Hoka’s sitemap index and Brooks’ sitemap index returned HTTP 403. Asics sometimes returns a captcha page for both `robots.txt` and the sitemap. Trying another ordinary network is not a fix that has worked here.
+On this Mac, only Reebok answers. A probe on 5 Oct 2026 got a real Reebok sitemap (HTTP 200, 12 allowed child sitemaps) and a full run (88 pages, 23 blogs, 4,579 collections). The checked-in config has Hoka, Adidas, Brooks, and Asics **enabled** as well, but the same network refuses them, so a run stores `sitemap_error` rather than an inventory. Hoka’s sitemap index and Brooks’ sitemap index returned HTTP 403. Asics sometimes returns a captcha page for both `robots.txt` and the sitemap. Trying another ordinary network is not a fix that has worked here. Set `enabled: false` on a brand you do not want in “run all” until a probe succeeds.
 
 ## Limits that are the other company’s wall
 
@@ -66,7 +66,7 @@ A normal home or office connection is not enough for these four. The wall is sco
 
 A `sitemap_error` report means **this client was refused**. It does not mean the competitor published nothing.
 
-The tool’s own message on that failure is explicit: there is no bypass built in. Those four brands stay disabled. Reebok is the brand this project can actually report on from here.
+The tool’s own message on that failure is explicit: there is no bypass built in. Those four brands can be left enabled and will record the wall, or turned off so they are skipped. Reebok is the brand this project can actually report on from here.
 
 ## If this were a large project
 
